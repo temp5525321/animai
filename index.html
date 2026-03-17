@@ -177,6 +177,9 @@ footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center;
     <div class="nav-link" onclick="showPage('admin',this)">관리자</div>
   </div>
   <div class="nav-right">
+    <div id="userArea" style="display:flex;align-items:center;gap:8px;">
+      <button class="btn-primary" id="loginBtn" onclick="googleLogin()" style="background:transparent;border:1px solid var(--border2);color:var(--muted);">구글 로그인</button>
+    </div>
     <button class="btn-primary" onclick="fetchYT()">▶ 새 영상 가져오기</button>
   </div>
 </nav>
@@ -225,7 +228,7 @@ footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center;
 <div class="page" id="page-bookmarks">
   <div class="hero">
     <h1><span class="t1">MY</span><br><span class="t2">SAVES</span></h1>
-    <p>내가 북마크한 영상 모음 (이 기기에만 저장됩니다)</p>
+    <p>로그인하면 어느 기기에서나 북마크를 볼 수 있습니다.</p>
   </div>
   <div class="section">
     <div class="grid" id="bmGrid"></div>
@@ -237,17 +240,23 @@ footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center;
 <div class="page" id="page-admin">
   <div class="hero">
     <h1><span class="t1">ADMIN</span><br><span class="t2">PANEL</span></h1>
-    <p>영상 관리 및 키워드 설정 (비밀번호: admin)</p>
+    <p>영상 관리 및 키워드 설정. Supabase 계정으로 로그인하세요.</p>
   </div>
   <div class="admin-wrap">
     <div id="adminLoginArea">
       <div class="admin-hd">관리자 로그인</div>
-      <div class="admin-login-row">
-        <input type="password" id="adminPw" placeholder="비밀번호" onkeydown="if(event.key==='Enter')adminLogin()">
-        <button onclick="adminLogin()">로그인</button>
+      <div class="admin-login-row" style="flex-direction:column;align-items:flex-start;gap:8px;max-width:320px;">
+        <input type="email" id="adminEmail" placeholder="이메일" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;font-family:'Noto Sans KR';outline:none;width:100%;" onkeydown="if(event.key==='Enter')adminLogin()">
+        <input type="password" id="adminPw" placeholder="비밀번호" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;font-family:'Noto Sans KR';outline:none;width:100%;" onkeydown="if(event.key==='Enter')adminLogin()">
+        <button onclick="adminLogin()" style="font-family:'Noto Sans KR';padding:8px 24px;border-radius:8px;border:none;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:13px;font-weight:700;cursor:pointer;">로그인</button>
+        <div id="loginError" style="font-size:12px;color:#f87171;display:none;"></div>
       </div>
     </div>
     <div id="adminContent" style="display:none;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;">
+        <div style="font-size:13px;color:var(--muted);">✓ 관리자로 로그인됨 — <span id="adminEmailLabel" style="color:var(--accent);"></span></div>
+        <button onclick="adminLogout()" style="font-family:'Noto Sans KR';font-size:12px;padding:6px 14px;border-radius:6px;border:1px solid var(--border2);background:transparent;color:var(--muted);cursor:pointer;">로그아웃</button>
+      </div>
       <div class="admin-hd">YouTube API 키</div>
       <div style="margin-bottom:1.5rem;">
         <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">영상 수집에 사용할 YouTube Data API v3 키를 입력하세요. 이 기기에만 저장됩니다.</div>
@@ -256,6 +265,14 @@ footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center;
           <button class="setup-btn" onclick="saveYTKey()">저장 및 검색</button>
         </div>
         <div class="status-msg" id="apiStatus"></div>
+      </div>
+      <div class="admin-hd">비밀번호 변경</div>
+      <div style="margin-bottom:1.5rem;max-width:320px;display:flex;flex-direction:column;gap:8px;">
+        <input type="password" id="pwCurrent" placeholder="현재 비밀번호" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;font-family:'Noto Sans KR';outline:none;">
+        <input type="password" id="pwNew" placeholder="새 비밀번호 (6자 이상)" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;font-family:'Noto Sans KR';outline:none;">
+        <input type="password" id="pwConfirm" placeholder="새 비밀번호 확인" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;font-family:'Noto Sans KR';outline:none;">
+        <button onclick="changePassword()" style="font-family:'Noto Sans KR';font-size:12px;padding:8px 18px;border-radius:8px;border:none;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-weight:700;cursor:pointer;align-self:flex-start;">비밀번호 변경</button>
+        <div id="pwStatus" style="font-size:12px;display:none;"></div>
       </div>
       <div class="admin-hd">검색 키워드</div>
       <div style="margin-bottom:1.5rem;">
@@ -318,48 +335,99 @@ footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center;
 </footer>
 
 <script>
-// =============================================
-// ⚙️ 여기에 본인 Supabase 정보를 입력하세요
-// =============================================
 const SUPABASE_URL = 'https://unpztnvewqqhnwnyfopa.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVucHp0bnZld3FxaG53bnlmb3BhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3MTcxNTgsImV4cCI6MjA4OTI5MzE1OH0.g5iTLHWqaEIxGO9-PwRqmToy_eZz2gy4ra7eWODZluQ';
-// =============================================
 
 const { createClient } = supabase;
 const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const DEFAULT_KW = ['애니메이션 실사화 AI','anime live action AI','anime to real life AI','AI anime realistic','Sora anime live action','Runway anime real','Kling anime realistic'];
 const TAG_LABEL = {anime:'애니 실사화',cosplay:'코스프레 AI',sora:'Sora',runway:'Runway',kling:'Kling'};
-const ADMIN_PW = 'admin';
 
 let videos = [];
 let curFilter = 'all';
 let curModalId = null;
-let bookmarks = JSON.parse(localStorage.getItem('animai_bm') || '[]');
-let likedYtIds = JSON.parse(localStorage.getItem('animai_liked_ytids') || '[]');
+let bookmarks = []; // 서버에서 로드
+let likedYtIds = []; // 서버에서 로드
 let keywords = JSON.parse(localStorage.getItem('animai_kw') || 'null') || [...DEFAULT_KW];
 let ytApiKey = localStorage.getItem('animai_ytkey') || '';
 let admLoggedIn = false;
 let admFilter = 'all';
-
-// 세션 ID (좋아요 중복 방지용)
-let sessionId = localStorage.getItem('animai_session');
-if (!sessionId) { sessionId = Math.random().toString(36).slice(2); localStorage.setItem('animai_session', sessionId); }
-
-function fillApiKeyInput() {
-  const el = document.getElementById('apiKeyInput');
-  const st = document.getElementById('apiStatus');
-  if (el && ytApiKey) {
-    el.value = ytApiKey;
-    st.textContent = '✓ YouTube API 키 저장됨';
-    st.className = 'status-msg ok';
-  }
-}
+let currentUser = null;
 
 // ── 초기 로드 ──
 async function init() {
   await loadVideos();
+  const { data: { session } } = await db.auth.getSession();
+  if (session?.user) await onUserLogin(session.user);
+  // 관리자 세션 복원
+  if (session?.user) showAdminContent(session.user.email);
+
+  // 로그인 상태 변화 감지
+  db.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_IN' && session?.user) {
+      await onUserLogin(session.user);
+    } else if (event === 'SIGNED_OUT') {
+      onUserLogout();
+    }
+  });
+}
+
+async function onUserLogin(user) {
+  currentUser = user;
+  updateUserUI(user);
+  await loadUserData();
+  renderGrid();
   updateStats();
+}
+
+function onUserLogout() {
+  currentUser = null;
+  bookmarks = [];
+  likedYtIds = [];
+  updateUserUI(null);
+  renderGrid();
+  updateStats();
+}
+
+function updateUserUI(user) {
+  const area = document.getElementById('userArea');
+  if (user) {
+    const name = user.user_metadata?.full_name || user.email?.split('@')[0] || '사용자';
+    const avatar = user.user_metadata?.avatar_url;
+    area.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;">
+        ${avatar ? `<img src="${avatar}" style="width:28px;height:28px;border-radius:50%;border:1px solid var(--border2);">` : ''}
+        <span style="font-size:12px;color:var(--muted);">${name}</span>
+        <button onclick="userLogout()" style="font-family:'Noto Sans KR';font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid var(--border2);background:transparent;color:var(--muted);cursor:pointer;">로그아웃</button>
+      </div>`;
+  } else {
+    area.innerHTML = `<button class="btn-primary" onclick="googleLogin()" style="background:transparent;border:1px solid var(--border2);color:var(--muted);">구글 로그인</button>`;
+  }
+}
+
+async function googleLogin() {
+  const { error } = await db.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: window.location.href }
+  });
+  if (error) toast('로그인 오류: ' + error.message);
+}
+
+async function userLogout() {
+  await db.auth.signOut();
+  toast('로그아웃됐습니다');
+}
+
+// ── 유저 데이터 로드 (북마크, 좋아요) ──
+async function loadUserData() {
+  if (!currentUser) return;
+  const [bmRes, likeRes] = await Promise.all([
+    db.from('bookmarks').select('yt_id').eq('user_id', currentUser.id),
+    db.from('likes').select('yt_id').eq('user_id', currentUser.id)
+  ]);
+  bookmarks = (bmRes.data || []).map(b => b.yt_id);
+  likedYtIds = (likeRes.data || []).map(l => l.yt_id);
 }
 
 async function loadVideos() {
@@ -392,48 +460,27 @@ async function fetchYT() {
     const r = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(kw)}&type=video&maxResults=24&order=date&key=${ytApiKey}`);
     const d = await r.json();
     if (d.error) { toast('YouTube API 오류: ' + d.error.message); clearSkels(); btn.disabled=false; btn.textContent='⟳ YouTube 검색'; return; }
-
     const ids = d.items.map(i => i.id.videoId).join(',');
     const sr = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${ids}&key=${ytApiKey}`);
     const sd = await sr.json();
     const sm = {};
     (sd.items||[]).forEach(i => sm[i.id] = i.statistics);
-
-    // 이미 DB에 있는 yt_id 확인
     const { data: existing } = await db.from('videos').select('yt_id');
     const existSet = new Set((existing||[]).map(v => v.yt_id));
-
     const toInsert = [];
     d.items.forEach(item => {
       const vid = item.id.videoId;
       if (existSet.has(vid)) return;
       const sn = item.snippet;
       const st = sm[vid] || {};
-      toInsert.push({
-        yt_id: vid,
-        title: sn.title,
-        channel: sn.channelTitle,
-        published_at: (sn.publishedAt||'').slice(0,10),
-        thumb: sn.thumbnails?.medium?.url || `https://img.youtube.com/vi/${vid}/mqdefault.jpg`,
-        url: `https://www.youtube.com/watch?v=${vid}`,
-        views: parseInt(st.viewCount||0),
-        tag: guessTag(sn.title),
-        status: 'approved'
-      });
+      toInsert.push({ yt_id: vid, title: sn.title, channel: sn.channelTitle, published_at: (sn.publishedAt||'').slice(0,10), thumb: sn.thumbnails?.medium?.url || `https://img.youtube.com/vi/${vid}/mqdefault.jpg`, url: `https://www.youtube.com/watch?v=${vid}`, views: parseInt(st.viewCount||0), tag: guessTag(sn.title), status: 'approved' });
     });
-
     if (toInsert.length > 0) {
       const { error } = await db.from('videos').insert(toInsert);
       if (error) { toast('저장 오류: ' + error.message); }
       else { toast(`"${kw}" — ${toInsert.length}개 새 영상 수집됨 ✓`); await loadVideos(); }
-    } else {
-      toast('새로운 영상이 없습니다. 다시 시도해보세요.');
-      await loadVideos();
-    }
-  } catch(e) {
-    toast('네트워크 오류가 발생했습니다');
-    clearSkels();
-  }
+    } else { toast('새로운 영상이 없습니다. 다시 시도해보세요.'); await loadVideos(); }
+  } catch(e) { toast('네트워크 오류가 발생했습니다'); clearSkels(); }
   btn.disabled = false; btn.textContent = '⟳ YouTube 검색';
 }
 
@@ -446,7 +493,6 @@ function guessTag(t) {
   return 'anime';
 }
 
-// ── 렌더링 ──
 function showSkels() {
   document.getElementById('emptyState').style.display = 'none';
   document.getElementById('grid').innerHTML = Array(8).fill(0).map(()=>`<div class="skel-card"><div class="skel-thumb skel"></div><div class="skel-body"><div class="skel-line skel" style="width:88%"></div><div class="skel-line skel" style="width:55%"></div></div></div>`).join('');
@@ -464,21 +510,14 @@ function renderGrid() {
   const q = document.getElementById('searchInput').value.toLowerCase();
   const sort = document.getElementById('sortSel').value;
   let list = videos.filter(v => {
-    return (curFilter === 'all' || v.tag === curFilter) &&
-           (!q || v.title.toLowerCase().includes(q) || (v.channel||'').toLowerCase().includes(q));
+    return (curFilter === 'all' || v.tag === curFilter) && (!q || v.title.toLowerCase().includes(q) || (v.channel||'').toLowerCase().includes(q));
   });
   if (sort === 'views') list.sort((a,b) => b.views - a.views);
   else if (sort === 'likes') list.sort((a,b) => (b.like_count||0) - (a.like_count||0));
   else list.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
-
   const grid = document.getElementById('grid');
   const empty = document.getElementById('emptyState');
-  if (!list.length) {
-    grid.innerHTML = '';
-    empty.style.display = 'block';
-    empty.textContent = videos.length === 0 ? '아직 수집된 영상이 없습니다.' : '검색 결과가 없습니다.';
-    return;
-  }
+  if (!list.length) { grid.innerHTML = ''; empty.style.display = 'block'; empty.textContent = videos.length === 0 ? '아직 수집된 영상이 없습니다.' : '검색 결과가 없습니다.'; return; }
   empty.style.display = 'none';
   grid.innerHTML = list.map(v => buildCard(v)).join('');
 }
@@ -494,12 +533,13 @@ function buildCard(v) {
   const liked = likedYtIds.includes(v.yt_id);
   const saved = bookmarks.includes(v.yt_id);
   const vstr = fmtV(v.views);
+  const loginTip = currentUser ? '' : ' title="로그인 후 이용 가능"';
   return `<div class="card" id="card-${v.yt_id}">
     <div class="thumb">
       <img src="${v.thumb}" alt="" loading="lazy">
       <div class="play-ov" onclick="openModal('${v.yt_id}')"><div class="play-circle"><div class="play-tri"></div></div></div>
-      <button class="like-btn${liked?' liked':''}" onclick="toggleLike(event,'${v.yt_id}')">♥ ${v.like_count||0}</button>
-      <button class="bm-btn${saved?' saved':''}" onclick="toggleBm(event,'${v.yt_id}')">☆</button>
+      <button class="like-btn${liked?' liked':''}" onclick="toggleLike(event,'${v.yt_id}')"${loginTip}>♥ ${v.like_count||0}</button>
+      <button class="bm-btn${saved?' saved':''}" onclick="toggleBm(event,'${v.yt_id}')"${loginTip}>☆</button>
     </div>
     <div class="card-body" onclick="openModal('${v.yt_id}')" style="cursor:pointer;">
       <div class="card-title">${v.title}</div>
@@ -519,38 +559,58 @@ function updateStats() {
   document.getElementById('bmCount').textContent = bookmarks.length;
 }
 
-// ── 좋아요 ──
+// ── 좋아요 (계정당 1회) ──
 async function toggleLike(e, ytId) {
   e.stopPropagation();
+  if (!currentUser) { toast('로그인 후 이용할 수 있어요'); return; }
+  const v = videos.find(v=>v.yt_id===ytId);
   if (likedYtIds.includes(ytId)) {
-    await db.from('likes').delete().eq('yt_id', ytId).eq('session_id', sessionId);
+    await db.from('likes').delete().eq('yt_id', ytId).eq('user_id', currentUser.id);
     likedYtIds = likedYtIds.filter(x => x !== ytId);
-    const v = videos.find(v=>v.yt_id===ytId); if(v) v.like_count = Math.max(0,(v.like_count||1)-1);
+    if(v) v.like_count = Math.max(0,(v.like_count||1)-1);
   } else {
-    await db.from('likes').insert({ yt_id: ytId, session_id: sessionId });
+    await db.from('likes').insert({ yt_id: ytId, user_id: currentUser.id });
     likedYtIds.push(ytId);
-    const v = videos.find(v=>v.yt_id===ytId); if(v) v.like_count = (v.like_count||0)+1;
+    if(v) v.like_count = (v.like_count||0)+1;
   }
-  localStorage.setItem('animai_liked_ytids', JSON.stringify(likedYtIds));
   renderGrid(); updateStats();
 }
 
-// ── 북마크 (로컬) ──
-function toggleBm(e, ytId) {
+// ── 북마크 (서버 저장) ──
+async function toggleBm(e, ytId) {
   e.stopPropagation();
-  if (bookmarks.includes(ytId)) { bookmarks = bookmarks.filter(x=>x!==ytId); toast('북마크 해제됨'); }
-  else { bookmarks.push(ytId); toast('북마크에 저장됨 ★'); }
-  localStorage.setItem('animai_bm', JSON.stringify(bookmarks));
+  if (!currentUser) { toast('로그인 후 이용할 수 있어요'); return; }
+  if (bookmarks.includes(ytId)) {
+    await db.from('bookmarks').delete().eq('yt_id', ytId).eq('user_id', currentUser.id);
+    bookmarks = bookmarks.filter(x => x !== ytId);
+    toast('북마크 해제됨');
+  } else {
+    await db.from('bookmarks').insert({ yt_id: ytId, user_id: currentUser.id });
+    bookmarks.push(ytId);
+    toast('북마크에 저장됨 ★');
+  }
   renderGrid(); updateStats();
 }
 
-function renderBm() {
+async function renderBm() {
   const g = document.getElementById('bmGrid');
   const empty = document.getElementById('bmEmpty');
+  if (!currentUser) {
+    g.innerHTML = '';
+    empty.style.display = 'block';
+    empty.textContent = '로그인하면 북마크를 저장하고 볼 수 있어요.';
+    return;
+  }
   const saved = videos.filter(v => bookmarks.includes(v.yt_id));
-  if (!saved.length) { g.innerHTML=''; empty.style.display='block'; return; }
+  if (!saved.length) { g.innerHTML=''; empty.style.display='block'; empty.textContent='북마크한 영상이 없습니다.'; return; }
   empty.style.display='none';
   g.innerHTML = saved.map(v => buildCard(v)).join('');
+}
+
+// ── 시청 기록 저장 ──
+async function recordWatch(ytId) {
+  if (!currentUser) return;
+  await db.from('watch_history').upsert({ yt_id: ytId, user_id: currentUser.id, watched_at: new Date().toISOString() }, { onConflict: 'user_id,yt_id' });
 }
 
 // ── 모달 ──
@@ -568,7 +628,7 @@ async function openModal(ytId) {
   bb.classList.toggle('active', bookmarks.includes(ytId));
   bb.textContent = bookmarks.includes(ytId) ? '★ 북마크됨' : '☆ 북마크';
   document.getElementById('videoModal').classList.add('open');
-  await loadCmts(ytId);
+  await Promise.all([loadCmts(ytId), recordWatch(ytId)]);
 }
 
 function closeModalBg(e) { if(e.target===document.getElementById('videoModal')) closeModal(); }
@@ -581,8 +641,8 @@ async function mLike() {
   document.getElementById('mLikeBtn').classList.toggle('active', likedYtIds.includes(curModalId));
 }
 
-function mBm() {
-  toggleBm({ stopPropagation: ()=>{} }, curModalId);
+async function mBm() {
+  await toggleBm({ stopPropagation: ()=>{} }, curModalId);
   const bb = document.getElementById('mBmBtn');
   bb.classList.toggle('active', bookmarks.includes(curModalId));
   bb.textContent = bookmarks.includes(curModalId) ? '★ 북마크됨' : '☆ 북마크';
@@ -598,22 +658,38 @@ async function loadCmts(ytId) {
   const { data } = await db.from('comments').select('*').eq('yt_id', ytId).order('created_at', { ascending: true });
   const cmts = data || [];
   document.getElementById('cmtCount').textContent = cmts.length;
-  document.getElementById('cmtList').innerHTML = cmts.map(c => `
-    <div class="cmt">
+  document.getElementById('cmtList').innerHTML = cmts.map(c => {
+    const isMine = currentUser && c.user_id === currentUser.id;
+    return `<div class="cmt">
       <div class="cmt-av">${(c.name||'익')[0]}</div>
-      <div><div class="cmt-name">${c.name||'익명'}</div><div class="cmt-text">${c.text}</div><div class="cmt-time">${new Date(c.created_at).toLocaleString('ko-KR')}</div></div>
-    </div>`).join('') || '<div style="font-size:13px;color:var(--muted);padding:.75rem 0;">첫 댓글을 남겨보세요!</div>';
+      <div style="flex:1;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="cmt-name">${c.name||'익명'}</div>
+          ${isMine ? `<button onclick="deleteCmt('${c.id}','${ytId}')" style="font-size:10px;background:none;border:none;color:var(--muted);cursor:pointer;padding:0;">삭제</button>` : ''}
+        </div>
+        <div class="cmt-text">${c.text}</div>
+        <div class="cmt-time">${new Date(c.created_at).toLocaleString('ko-KR')}</div>
+      </div>
+    </div>`;
+  }).join('') || '<div style="font-size:13px;color:var(--muted);padding:.75rem 0;">첫 댓글을 남겨보세요!</div>';
 }
 
 async function postCmt() {
-  const name = document.getElementById('cmtName').value.trim() || '익명';
+  if (!currentUser) { toast('로그인 후 댓글을 작성할 수 있어요'); return; }
+  const name = document.getElementById('cmtName').value.trim() || currentUser.user_metadata?.full_name || '익명';
   const text = document.getElementById('cmtInput').value.trim();
   if (!text) return;
-  const { error } = await db.from('comments').insert({ yt_id: curModalId, name, text });
+  const { error } = await db.from('comments').insert({ yt_id: curModalId, name, text, user_id: currentUser.id, user_email: currentUser.email });
   if (error) { toast('댓글 등록 오류'); return; }
   document.getElementById('cmtInput').value = '';
   await loadCmts(curModalId);
   toast('댓글 등록됨!');
+}
+
+async function deleteCmt(cmtId, ytId) {
+  await db.from('comments').delete().eq('id', cmtId);
+  await loadCmts(ytId);
+  toast('댓글 삭제됨');
 }
 
 // ── 페이지 전환 ──
@@ -626,15 +702,61 @@ function showPage(name, el) {
   if (name === 'admin') renderAdmTable();
 }
 
-// ── 관리자 ──
-function adminLogin() {
-  if (document.getElementById('adminPw').value === ADMIN_PW) {
-    admLoggedIn = true;
-    document.getElementById('adminLoginArea').style.display='none';
-    document.getElementById('adminContent').style.display='block';
-    fillApiKeyInput();
-    renderAdmTable(); renderKws(); toast('관리자 로그인됨');
-  } else toast('비밀번호 오류');
+// ── 관리자 (Supabase Auth) ──
+async function adminLogin() {
+  const email = document.getElementById('adminEmail').value.trim();
+  const pw = document.getElementById('adminPw').value;
+  const errEl = document.getElementById('loginError');
+  errEl.style.display = 'none';
+  if (!email || !pw) { errEl.textContent = '이메일과 비밀번호를 입력해주세요.'; errEl.style.display='block'; return; }
+  const { data, error } = await db.auth.signInWithPassword({ email, password: pw });
+  if (error) { errEl.textContent = '로그인 실패: ' + error.message; errEl.style.display='block'; return; }
+  showAdminContent(data.user.email);
+}
+
+function showAdminContent(email) {
+  admLoggedIn = true;
+  document.getElementById('adminLoginArea').style.display='none';
+  document.getElementById('adminContent').style.display='block';
+  document.getElementById('adminEmailLabel').textContent = email || '';
+  fillApiKeyInput();
+  renderAdmTable(); renderKws();
+  toast('관리자로 로그인됨');
+}
+
+async function adminLogout() {
+  await db.auth.signOut();
+  admLoggedIn = false;
+  document.getElementById('adminLoginArea').style.display='block';
+  document.getElementById('adminContent').style.display='none';
+  document.getElementById('adminPw').value='';
+  document.getElementById('adminEmail').value='';
+  toast('로그아웃됨');
+}
+
+function fillApiKeyInput() {
+  const el = document.getElementById('apiKeyInput');
+  const st = document.getElementById('apiStatus');
+  if (el && ytApiKey) { el.value = ytApiKey; st.textContent = '✓ YouTube API 키 저장됨'; st.className = 'status-msg ok'; }
+}
+
+async function changePassword() {
+  const current = document.getElementById('pwCurrent').value;
+  const newPw = document.getElementById('pwNew').value;
+  const confirm = document.getElementById('pwConfirm').value;
+  const statusEl = document.getElementById('pwStatus');
+  statusEl.style.display = 'block';
+  if (!current || !newPw || !confirm) { statusEl.style.color='#f87171'; statusEl.textContent='모든 항목을 입력해주세요.'; return; }
+  if (newPw.length < 6) { statusEl.style.color='#f87171'; statusEl.textContent='새 비밀번호는 6자 이상이어야 합니다.'; return; }
+  if (newPw !== confirm) { statusEl.style.color='#f87171'; statusEl.textContent='새 비밀번호가 일치하지 않습니다.'; return; }
+  const { data: { user } } = await db.auth.getUser();
+  const { error: signInErr } = await db.auth.signInWithPassword({ email: user.email, password: current });
+  if (signInErr) { statusEl.style.color='#f87171'; statusEl.textContent='현재 비밀번호가 틀렸습니다.'; return; }
+  const { error } = await db.auth.updateUser({ password: newPw });
+  if (error) { statusEl.style.color='#f87171'; statusEl.textContent='변경 실패: '+error.message; return; }
+  statusEl.style.color='#6ee7b7'; statusEl.textContent='✓ 비밀번호가 변경됐습니다!';
+  document.getElementById('pwCurrent').value=''; document.getElementById('pwNew').value=''; document.getElementById('pwConfirm').value='';
+  setTimeout(()=>{ statusEl.style.display='none'; }, 3000);
 }
 
 function renderKws() {
@@ -680,7 +802,9 @@ function toast(msg) {
   setTimeout(()=>t.classList.remove('show'), 2500);
 }
 
+const ADMIN_PW = '';
 init();
 </script>
 </body>
 </html>
+
