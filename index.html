@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ANIMAI — 애니메이션 실사화 AI 갤러리</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --bg: #080810; --bg2: #0f0f1a; --bg3: #16162a;
+  --border: rgba(140,100,255,0.12); --border2: rgba(140,100,255,0.28);
+  --text: #eeeeff; --muted: #7070a0;
+  --accent: #a78bfa; --accent2: #f472b6;
+  --glow: rgba(167,139,250,0.12);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: 'Noto Sans KR', sans-serif; min-height: 100vh; overflow-x: hidden; }
+body::before { content: ''; position: fixed; inset: 0; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.025) 2px, rgba(0,0,0,0.025) 4px); pointer-events: none; z-index: 0; }
+
+nav { position: sticky; top: 0; z-index: 100; background: rgba(8,8,16,0.93); backdrop-filter: blur(16px); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 2rem; height: 56px; gap: 1.5rem; }
+.logo { font-family: 'Bebas Neue'; font-size: 24px; letter-spacing: 4px; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; cursor: pointer; }
+.logo-sub { font-size: 11px; color: var(--muted); -webkit-text-fill-color: var(--muted); }
+.nav-links { display: flex; }
+.nav-link { font-size: 13px; padding: 6px 12px; color: var(--muted); cursor: pointer; border-radius: 6px; transition: all 0.15s; }
+.nav-link:hover, .nav-link.active { color: var(--accent); background: var(--glow); }
+.nav-right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.btn-primary { font-family: 'Noto Sans KR'; font-size: 12px; padding: 7px 16px; border-radius: 6px; border: none; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; font-weight: 700; cursor: pointer; }
+.btn-primary:hover { opacity: 0.85; }
+
+.hero { padding: 3rem 2rem 2rem; position: relative; z-index: 1; }
+.hero::after { content: ''; position: absolute; top: 0; right: 0; width: 50%; height: 100%; background: radial-gradient(ellipse at 80% 40%, rgba(167,139,250,0.07) 0%, transparent 65%); pointer-events: none; }
+.hero h1 { font-family: 'Bebas Neue'; font-size: clamp(52px, 9vw, 108px); letter-spacing: 3px; line-height: 0.88; }
+.t1 { color: var(--text); }
+.t2 { background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.hero p { margin-top: 1rem; color: var(--muted); font-size: 14px; max-width: 500px; line-height: 1.7; }
+.stats-row { display: flex; gap: 2rem; margin-top: 1.5rem; }
+.stat-num { font-family: 'Bebas Neue'; font-size: 30px; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.stat-label { font-size: 10px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+
+/* API KEY SETUP */
+.setup-box { background: var(--bg2); border: 1px solid var(--border2); border-radius: 14px; padding: 1.5rem; margin: 0 2rem 2rem; position: relative; z-index: 1; }
+.setup-title { font-family: 'Bebas Neue'; font-size: 18px; letter-spacing: 2px; color: var(--accent); margin-bottom: 6px; }
+.setup-desc { font-size: 13px; color: var(--muted); margin-bottom: 1rem; line-height: 1.6; }
+.setup-row { display: flex; gap: 8px; }
+.text-input { flex: 1; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 9px 14px; color: var(--text); font-size: 13px; font-family: 'Noto Sans KR'; outline: none; }
+.text-input:focus { border-color: var(--accent); }
+.setup-btn { font-family: 'Noto Sans KR'; font-size: 13px; padding: 9px 20px; border-radius: 8px; border: none; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.status-msg { margin-top: 8px; font-size: 12px; }
+.ok { color: #6ee7b7; } .err { color: #f87171; }
+
+.toolbar { padding: 0 2rem 1.5rem; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; position: relative; z-index: 1; }
+.search-box { display: flex; align-items: center; gap: 8px; background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; flex: 1; min-width: 180px; max-width: 320px; }
+.search-box svg { width: 14px; height: 14px; opacity: 0.3; flex-shrink: 0; }
+.search-box input { background: none; border: none; outline: none; color: var(--text); font-size: 13px; font-family: 'Noto Sans KR'; width: 100%; }
+.search-box input::placeholder { color: var(--muted); }
+.filter-group { display: flex; gap: 4px; flex-wrap: wrap; }
+.tag { font-size: 12px; padding: 6px 13px; border-radius: 20px; border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer; transition: all 0.15s; font-family: 'Noto Sans KR'; }
+.tag:hover { border-color: var(--border2); color: var(--text); }
+.tag.on { background: var(--glow); border-color: var(--accent); color: var(--accent); font-weight: 700; }
+.sort-sel { background: var(--bg2); border: 1px solid var(--border); color: var(--muted); font-size: 12px; padding: 6px 10px; border-radius: 8px; outline: none; font-family: 'Noto Sans KR'; cursor: pointer; }
+.fetch-btn { font-family: 'Noto Sans KR'; font-size: 12px; padding: 7px 14px; border-radius: 8px; border: 1px solid var(--border2); background: var(--glow); color: var(--accent); cursor: pointer; font-weight: 700; transition: all 0.15s; }
+.fetch-btn:hover { border-color: var(--accent); }
+.fetch-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.section { padding: 0 2rem 3rem; position: relative; z-index: 1; }
+.sec-label { font-size: 11px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 1rem; display: flex; align-items: center; gap: 8px; }
+.sec-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 16px; }
+.card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; cursor: pointer; transition: all 0.2s; }
+.card:hover { border-color: var(--border2); transform: translateY(-4px); box-shadow: 0 8px 32px rgba(167,139,250,0.1); }
+.thumb { position: relative; aspect-ratio: 16/9; background: var(--bg3); overflow: hidden; }
+.thumb img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s; }
+.card:hover .thumb img { transform: scale(1.05); }
+.play-ov { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; background: rgba(0,0,0,0.38); }
+.card:hover .play-ov { opacity: 1; }
+.play-circle { width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent2)); display: flex; align-items: center; justify-content: center; }
+.play-tri { width: 0; height: 0; border-style: solid; border-width: 9px 0 9px 17px; border-color: transparent transparent transparent #fff; margin-left: 3px; }
+.like-btn { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.65); border: none; border-radius: 20px; padding: 4px 10px; display: flex; align-items: center; gap: 4px; cursor: pointer; transition: all 0.15s; font-size: 12px; color: #fff; font-family: 'Noto Sans KR'; }
+.like-btn:hover, .like-btn.liked { background: rgba(244,114,182,0.85); }
+.bm-btn { position: absolute; top: 42px; right: 10px; background: rgba(0,0,0,0.65); border: none; border-radius: 20px; padding: 4px 10px; cursor: pointer; transition: all 0.15s; font-size: 13px; color: #fff; }
+.bm-btn:hover, .bm-btn.saved { background: rgba(167,139,250,0.85); }
+.card-body { padding: 12px 14px 14px; }
+.card-title { font-size: 13px; font-weight: 500; line-height: 1.45; color: var(--text); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 8px; }
+.card-meta { display: flex; align-items: center; justify-content: space-between; }
+.card-ch { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 5px; }
+.ch-dot { width: 18px; height: 18px; border-radius: 50%; background: var(--glow); border: 1px solid var(--border2); display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: var(--accent); }
+.card-date { font-size: 11px; color: var(--muted); }
+.card-tags { display: flex; gap: 4px; margin-top: 8px; }
+.card-tag { font-size: 10px; padding: 2px 8px; border-radius: 20px; background: var(--bg3); color: var(--muted); border: 1px solid var(--border); }
+.views-info { font-size: 11px; color: var(--muted); margin-top: 5px; }
+
+.skel { background: linear-gradient(90deg, var(--bg2) 25%, var(--bg3) 50%, var(--bg2) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 8px; }
+@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+.skel-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.skel-thumb { aspect-ratio: 16/9; }
+.skel-body { padding: 12px 14px; }
+.skel-line { height: 12px; margin-bottom: 8px; border-radius: 4px; }
+
+.modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.88); z-index: 200; align-items: center; justify-content: center; padding: 1rem; backdrop-filter: blur(6px); }
+.modal-bg.open { display: flex; }
+.modal { background: var(--bg2); border: 1px solid var(--border2); border-radius: 16px; width: 100%; max-width: 880px; max-height: 90vh; overflow-y: auto; position: relative; }
+.modal-video { aspect-ratio: 16/9; background: #000; width: 100%; border-radius: 16px 16px 0 0; overflow: hidden; }
+.modal-video iframe { width: 100%; height: 100%; border: none; }
+.modal-body { padding: 1.25rem 1.5rem; }
+.modal-title { font-size: 16px; font-weight: 700; line-height: 1.4; margin-bottom: 6px; }
+.modal-meta { display: flex; gap: 12px; margin-bottom: 1rem; flex-wrap: wrap; align-items: center; }
+.modal-ch { font-size: 13px; color: var(--muted); }
+.modal-date { font-size: 12px; color: var(--muted); }
+.modal-link { font-size: 12px; color: var(--accent); text-decoration: none; }
+.modal-link:hover { text-decoration: underline; }
+.modal-actions { display: flex; gap: 8px; margin-bottom: 1.25rem; flex-wrap: wrap; }
+.modal-btn { font-family: 'Noto Sans KR'; font-size: 12px; padding: 7px 14px; border-radius: 7px; border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer; transition: all 0.15s; }
+.modal-btn:hover { border-color: var(--border2); color: var(--text); }
+.modal-btn.active { border-color: var(--accent); color: var(--accent); background: var(--glow); }
+.modal-close { position: absolute; top: 12px; right: 12px; background: rgba(0,0,0,0.6); border: 1px solid var(--border); color: var(--muted); font-size: 18px; width: 34px; height: 34px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 10; }
+.modal-close:hover { color: var(--text); }
+
+.comments-sec { border-top: 1px solid var(--border); padding-top: 1rem; }
+.comments-hd { font-size: 11px; font-weight: 700; margin-bottom: 1rem; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+.cmt-row { display: flex; gap: 8px; margin-bottom: 1rem; }
+.cmt-input { flex: 1; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; color: var(--text); font-size: 13px; font-family: 'Noto Sans KR'; outline: none; resize: none; }
+.cmt-input:focus { border-color: var(--accent); }
+.cmt-name-input { background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; color: var(--text); font-size: 13px; font-family: 'Noto Sans KR'; outline: none; width: 120px; flex-shrink: 0; }
+.cmt-name-input:focus { border-color: var(--accent); }
+.cmt-submit { font-family: 'Noto Sans KR'; font-size: 12px; padding: 9px 14px; border-radius: 8px; border: none; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; font-weight: 700; cursor: pointer; align-self: flex-end; white-space: nowrap; }
+.cmt { display: flex; gap: 10px; margin-bottom: 12px; }
+.cmt-av { width: 28px; height: 28px; border-radius: 50%; background: var(--glow); border: 1px solid var(--border2); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: var(--accent); flex-shrink: 0; }
+.cmt-name { font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 3px; }
+.cmt-text { font-size: 13px; color: var(--muted); line-height: 1.5; }
+.cmt-time { font-size: 10px; color: var(--muted); opacity: 0.45; margin-top: 3px; }
+
+.admin-wrap { background: var(--bg2); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; margin: 0 2rem 2rem; position: relative; z-index: 1; }
+.admin-hd { font-family: 'Bebas Neue'; font-size: 20px; letter-spacing: 2px; color: var(--accent2); margin-bottom: 1rem; }
+.admin-login-row { display: flex; gap: 8px; align-items: center; }
+.admin-login-row input { background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; color: var(--text); font-size: 13px; font-family: 'Noto Sans KR'; outline: none; width: 180px; }
+.admin-login-row button { font-family: 'Noto Sans KR'; padding: 8px 16px; border-radius: 8px; border: none; background: var(--accent2); color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; }
+.admin-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.admin-table th { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 400; }
+.admin-table td { padding: 10px; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: middle; }
+.admin-table tr:hover td { background: var(--bg3); }
+.adm-btn { font-size: 11px; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer; margin-right: 4px; font-family: 'Noto Sans KR'; }
+.adm-btn:hover { border-color: var(--accent); color: var(--accent); }
+.adm-btn.del:hover { border-color: #f87171; color: #f87171; }
+.kw-list { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.kw-chip { display: inline-flex; align-items: center; gap: 4px; background: var(--bg3); border: 1px solid var(--border2); border-radius: 20px; padding: 4px 10px; font-size: 12px; color: var(--accent); }
+.kw-chip button { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 14px; line-height: 1; padding: 0; }
+.kw-add-row { display: flex; gap: 8px; }
+.kw-add-row input { background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; color: var(--text); font-size: 13px; font-family: 'Noto Sans KR'; outline: none; max-width: 240px; }
+
+.toast { position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(100px); background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; font-size: 13px; font-weight: 700; padding: 10px 22px; border-radius: 30px; z-index: 999; transition: transform 0.3s; pointer-events: none; font-family: 'Noto Sans KR'; }
+.toast.show { transform: translateX(-50%) translateY(0); }
+.empty-st { text-align: center; padding: 4rem 2rem; color: var(--muted); font-size: 14px; }
+.page { display: none; }
+.page.active { display: block; }
+footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center; color: var(--muted); font-size: 12px; position: relative; z-index: 1; }
+
+@media (max-width: 600px) {
+  nav { padding: 0 1rem; gap: 1rem; }
+  .hero, .toolbar, .section { padding-left: 1rem; padding-right: 1rem; }
+  .setup-box, .admin-wrap { margin-left: 1rem; margin-right: 1rem; }
+  .grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <div>
+    <span class="logo" onclick="showPage('home')">ANIMAI</span>
+    <span class="logo-sub"> 애니메이션 실사화 AI</span>
+  </div>
+  <div class="nav-links">
+    <div class="nav-link active" onclick="showPage('home',this)">홈</div>
+    <div class="nav-link" onclick="showPage('bookmarks',this)">북마크</div>
+    <div class="nav-link" onclick="showPage('admin',this)">관리자</div>
+  </div>
+  <div class="nav-right">
+    <button class="btn-primary" onclick="fetchYT()">▶ 새 영상 가져오기</button>
+  </div>
+</nav>
+
+<!-- HOME -->
+<div class="page active" id="page-home">
+  <div class="hero">
+    <h1><span class="t1">ANIME</span><br><span class="t2">REAL</span></h1>
+    <p>YouTube에서 자동 수집한 애니메이션 실사화 AI 영상. 누구나 볼 수 있고 댓글·좋아요를 남길 수 있습니다.</p>
+    <div class="stats-row">
+      <div class="stat"><div class="stat-num" id="totalCount">0</div><div class="stat-label">총 영상</div></div>
+      <div class="stat"><div class="stat-num" id="likedCount">0</div><div class="stat-label">내 좋아요</div></div>
+      <div class="stat"><div class="stat-num" id="bmCount">0</div><div class="stat-label">북마크</div></div>
+    </div>
+  </div>
+
+  <div class="setup-box" id="ytApiBox">
+    <div class="setup-title">YouTube API 키 설정 (관리자용)</div>
+    <div class="setup-desc">영상을 수집하려면 YouTube Data API v3 키가 필요합니다. 방문자는 이 설정 없이 영상을 볼 수 있습니다.</div>
+    <div class="setup-row">
+      <input class="text-input" id="apiKeyInput" type="password" placeholder="AIzaSy... YouTube API 키 입력">
+      <button class="setup-btn" onclick="saveYTKey()">저장 및 검색</button>
+    </div>
+    <div class="status-msg" id="apiStatus"></div>
+  </div>
+
+  <div class="toolbar">
+    <div class="search-box">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" id="searchInput" placeholder="영상 검색..." oninput="renderGrid()">
+    </div>
+    <div class="filter-group">
+      <button class="tag on" onclick="setFilter('all',this)">전체</button>
+      <button class="tag" onclick="setFilter('anime',this)">애니 실사화</button>
+      <button class="tag" onclick="setFilter('cosplay',this)">코스프레 AI</button>
+      <button class="tag" onclick="setFilter('sora',this)">Sora</button>
+      <button class="tag" onclick="setFilter('runway',this)">Runway</button>
+      <button class="tag" onclick="setFilter('kling',this)">Kling</button>
+    </div>
+    <select class="sort-sel" id="sortSel" onchange="renderGrid()">
+      <option value="newest">최신순</option>
+      <option value="views">조회수순</option>
+      <option value="likes">좋아요순</option>
+    </select>
+    <button class="fetch-btn" id="fetchBtn" onclick="fetchYT()">⟳ YouTube 검색</button>
+  </div>
+
+  <div class="section">
+    <div class="sec-label">영상 목록</div>
+    <div class="grid" id="grid"></div>
+    <div class="empty-st" id="emptyState" style="display:none;">아직 수집된 영상이 없습니다. 관리자가 영상을 추가하면 여기에 표시됩니다.</div>
+  </div>
+</div>
+
+<!-- BOOKMARKS -->
+<div class="page" id="page-bookmarks">
+  <div class="hero">
+    <h1><span class="t1">MY</span><br><span class="t2">SAVES</span></h1>
+    <p>내가 북마크한 영상 모음 (이 기기에만 저장됩니다)</p>
+  </div>
+  <div class="section">
+    <div class="grid" id="bmGrid"></div>
+    <div class="empty-st" id="bmEmpty" style="display:none;">북마크한 영상이 없습니다.</div>
+  </div>
+</div>
+
+<!-- ADMIN -->
+<div class="page" id="page-admin">
+  <div class="hero">
+    <h1><span class="t1">ADMIN</span><br><span class="t2">PANEL</span></h1>
+    <p>영상 관리 및 키워드 설정 (비밀번호: admin)</p>
+  </div>
+  <div class="admin-wrap">
+    <div id="adminLoginArea">
+      <div class="admin-hd">관리자 로그인</div>
+      <div class="admin-login-row">
+        <input type="password" id="adminPw" placeholder="비밀번호" onkeydown="if(event.key==='Enter')adminLogin()">
+        <button onclick="adminLogin()">로그인</button>
+      </div>
+    </div>
+    <div id="adminContent" style="display:none;">
+      <div class="admin-hd">검색 키워드</div>
+      <div style="margin-bottom:1.5rem;">
+        <div class="kw-list" id="kwList"></div>
+        <div class="kw-add-row">
+          <input id="newKw" placeholder="키워드 추가...">
+          <button class="setup-btn" style="padding:8px 14px;font-size:12px;" onclick="addKw()">추가</button>
+        </div>
+      </div>
+      <div class="admin-hd">영상 관리</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1rem;">
+        <button class="tag on" onclick="setAdmFilter('all',this)">전체</button>
+        <button class="tag" onclick="setAdmFilter('hidden',this)">숨김</button>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="admin-table">
+          <thead><tr><th>제목</th><th>채널</th><th>조회수</th><th>좋아요</th><th>상태</th><th>액션</th></tr></thead>
+          <tbody id="admTbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-bg" id="videoModal" onclick="closeModalBg(event)">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-video" id="modalVideo"></div>
+    <div class="modal-body">
+      <div class="modal-title" id="modalTitle"></div>
+      <div class="modal-meta">
+        <span class="modal-ch" id="modalCh"></span>
+        <span class="modal-date" id="modalDate"></span>
+        <a class="modal-link" id="modalLink" href="#" target="_blank">YouTube에서 보기 ↗</a>
+      </div>
+      <div class="modal-actions">
+        <button class="modal-btn" id="mLikeBtn" onclick="mLike()">♥ 좋아요 <span id="mLikeCnt">0</span></button>
+        <button class="modal-btn" id="mBmBtn" onclick="mBm()">☆ 북마크</button>
+        <button class="modal-btn" onclick="copyLink()">🔗 링크 복사</button>
+      </div>
+      <div class="comments-sec">
+        <div class="comments-hd">댓글 <span id="cmtCount">0</span></div>
+        <div class="cmt-row">
+          <input class="cmt-name-input" id="cmtName" placeholder="닉네임 (선택)" maxlength="20">
+          <textarea class="cmt-input" id="cmtInput" rows="2" placeholder="댓글을 입력하세요..."></textarea>
+          <button class="cmt-submit" onclick="postCmt()">등록</button>
+        </div>
+        <div id="cmtList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<footer>
+  <div style="font-family:'Bebas Neue';font-size:20px;letter-spacing:3px;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px;">ANIMAI</div>
+  YouTube 기반 애니메이션 실사화 AI 영상 큐레이션
+</footer>
+
+<script>
+// =============================================
+// ⚙️ 여기에 본인 Supabase 정보를 입력하세요
+// =============================================
+const SUPABASE_URL = 'https://unpztnvewqqhnwnyfopa.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVucHp0bnZld3FxaG53bnlmb3BhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3MTcxNTgsImV4cCI6MjA4OTI5MzE1OH0.g5iTLHWqaEIxGO9-PwRqmToy_eZz2gy4ra7eWODZluQ';
+// =============================================
+
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const DEFAULT_KW = ['애니메이션 실사화 AI','anime live action AI','anime to real life AI','AI anime realistic','Sora anime live action','Runway anime real','Kling anime realistic'];
+const TAG_LABEL = {anime:'애니 실사화',cosplay:'코스프레 AI',sora:'Sora',runway:'Runway',kling:'Kling'};
+const ADMIN_PW = 'admin';
+
+let videos = [];
+let curFilter = 'all';
+let curModalId = null;
+let bookmarks = JSON.parse(localStorage.getItem('animai_bm') || '[]');
+let likedYtIds = JSON.parse(localStorage.getItem('animai_liked_ytids') || '[]');
+let keywords = JSON.parse(localStorage.getItem('animai_kw') || 'null') || [...DEFAULT_KW];
+let ytApiKey = localStorage.getItem('animai_ytkey') || '';
+let admLoggedIn = false;
+let admFilter = 'all';
+
+// 세션 ID (좋아요 중복 방지용)
+let sessionId = localStorage.getItem('animai_session');
+if (!sessionId) { sessionId = Math.random().toString(36).slice(2); localStorage.setItem('animai_session', sessionId); }
+
+if (ytApiKey) {
+  document.getElementById('apiKeyInput').value = ytApiKey;
+  document.getElementById('apiStatus').textContent = '✓ YouTube API 키 저장됨';
+  document.getElementById('apiStatus').className = 'status-msg ok';
+}
+
+// ── 초기 로드 ──
+async function init() {
+  await loadVideos();
+  updateStats();
+}
+
+async function loadVideos() {
+  showSkels();
+  const { data, error } = await db.from('videos').select('*').eq('status','approved').order('created_at', { ascending: false });
+  if (error) { toast('DB 로드 오류: ' + error.message); clearSkels(); return; }
+  videos = data || [];
+  renderGrid();
+  updateStats();
+}
+
+// ── YouTube 수집 ──
+function saveYTKey() {
+  const k = document.getElementById('apiKeyInput').value.trim();
+  if (!k) { toast('API 키를 입력해주세요'); return; }
+  ytApiKey = k;
+  localStorage.setItem('animai_ytkey', k);
+  document.getElementById('apiStatus').textContent = '✓ 저장됨. 영상을 검색합니다...';
+  document.getElementById('apiStatus').className = 'status-msg ok';
+  fetchYT();
+}
+
+async function fetchYT() {
+  if (!ytApiKey) { toast('YouTube API 키를 먼저 입력해주세요'); return; }
+  const btn = document.getElementById('fetchBtn');
+  btn.disabled = true; btn.textContent = '⏳ 검색 중...';
+  showSkels();
+  const kw = keywords[Math.floor(Math.random() * keywords.length)];
+  try {
+    const r = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(kw)}&type=video&maxResults=24&order=date&key=${ytApiKey}`);
+    const d = await r.json();
+    if (d.error) { toast('YouTube API 오류: ' + d.error.message); clearSkels(); btn.disabled=false; btn.textContent='⟳ YouTube 검색'; return; }
+
+    const ids = d.items.map(i => i.id.videoId).join(',');
+    const sr = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${ids}&key=${ytApiKey}`);
+    const sd = await sr.json();
+    const sm = {};
+    (sd.items||[]).forEach(i => sm[i.id] = i.statistics);
+
+    // 이미 DB에 있는 yt_id 확인
+    const { data: existing } = await db.from('videos').select('yt_id');
+    const existSet = new Set((existing||[]).map(v => v.yt_id));
+
+    const toInsert = [];
+    d.items.forEach(item => {
+      const vid = item.id.videoId;
+      if (existSet.has(vid)) return;
+      const sn = item.snippet;
+      const st = sm[vid] || {};
+      toInsert.push({
+        yt_id: vid,
+        title: sn.title,
+        channel: sn.channelTitle,
+        published_at: (sn.publishedAt||'').slice(0,10),
+        thumb: sn.thumbnails?.medium?.url || `https://img.youtube.com/vi/${vid}/mqdefault.jpg`,
+        url: `https://www.youtube.com/watch?v=${vid}`,
+        views: parseInt(st.viewCount||0),
+        tag: guessTag(sn.title),
+        status: 'approved'
+      });
+    });
+
+    if (toInsert.length > 0) {
+      const { error } = await db.from('videos').insert(toInsert);
+      if (error) { toast('저장 오류: ' + error.message); }
+      else { toast(`"${kw}" — ${toInsert.length}개 새 영상 수집됨 ✓`); await loadVideos(); }
+    } else {
+      toast('새로운 영상이 없습니다. 다시 시도해보세요.');
+      await loadVideos();
+    }
+  } catch(e) {
+    toast('네트워크 오류가 발생했습니다');
+    clearSkels();
+  }
+  btn.disabled = false; btn.textContent = '⟳ YouTube 검색';
+}
+
+function guessTag(t) {
+  t = t.toLowerCase();
+  if (t.includes('sora')) return 'sora';
+  if (t.includes('runway')) return 'runway';
+  if (t.includes('kling')) return 'kling';
+  if (t.includes('cosplay')||t.includes('코스프레')) return 'cosplay';
+  return 'anime';
+}
+
+// ── 렌더링 ──
+function showSkels() {
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('grid').innerHTML = Array(8).fill(0).map(()=>`<div class="skel-card"><div class="skel-thumb skel"></div><div class="skel-body"><div class="skel-line skel" style="width:88%"></div><div class="skel-line skel" style="width:55%"></div></div></div>`).join('');
+}
+function clearSkels() { document.getElementById('grid').innerHTML = ''; document.getElementById('emptyState').style.display = 'block'; }
+
+function setFilter(f, el) {
+  curFilter = f;
+  document.querySelectorAll('.filter-group .tag').forEach(t => t.classList.remove('on'));
+  el.classList.add('on');
+  renderGrid();
+}
+
+function renderGrid() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  const sort = document.getElementById('sortSel').value;
+  let list = videos.filter(v => {
+    return (curFilter === 'all' || v.tag === curFilter) &&
+           (!q || v.title.toLowerCase().includes(q) || (v.channel||'').toLowerCase().includes(q));
+  });
+  if (sort === 'views') list.sort((a,b) => b.views - a.views);
+  else if (sort === 'likes') list.sort((a,b) => (b.like_count||0) - (a.like_count||0));
+  else list.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+
+  const grid = document.getElementById('grid');
+  const empty = document.getElementById('emptyState');
+  if (!list.length) {
+    grid.innerHTML = '';
+    empty.style.display = 'block';
+    empty.textContent = videos.length === 0 ? '아직 수집된 영상이 없습니다.' : '검색 결과가 없습니다.';
+    return;
+  }
+  empty.style.display = 'none';
+  grid.innerHTML = list.map(v => buildCard(v)).join('');
+}
+
+function fmtV(n) {
+  if (!n) return '';
+  if (n >= 10000) return Math.floor(n/10000)+'만';
+  if (n >= 1000) return Math.floor(n/1000)+'k';
+  return String(n);
+}
+
+function buildCard(v) {
+  const liked = likedYtIds.includes(v.yt_id);
+  const saved = bookmarks.includes(v.yt_id);
+  const vstr = fmtV(v.views);
+  return `<div class="card" id="card-${v.yt_id}">
+    <div class="thumb">
+      <img src="${v.thumb}" alt="" loading="lazy">
+      <div class="play-ov" onclick="openModal('${v.yt_id}')"><div class="play-circle"><div class="play-tri"></div></div></div>
+      <button class="like-btn${liked?' liked':''}" onclick="toggleLike(event,'${v.yt_id}')">♥ ${v.like_count||0}</button>
+      <button class="bm-btn${saved?' saved':''}" onclick="toggleBm(event,'${v.yt_id}')">☆</button>
+    </div>
+    <div class="card-body" onclick="openModal('${v.yt_id}')" style="cursor:pointer;">
+      <div class="card-title">${v.title}</div>
+      <div class="card-meta">
+        <span class="card-ch"><span class="ch-dot">${(v.channel||'?')[0]}</span>${v.channel||''}</span>
+        <span class="card-date">${v.published_at||''}</span>
+      </div>
+      <div class="card-tags"><span class="card-tag">${TAG_LABEL[v.tag]||v.tag||''}</span></div>
+      ${vstr?`<div class="views-info">▶ ${vstr} 조회</div>`:''}
+    </div>
+  </div>`;
+}
+
+function updateStats() {
+  document.getElementById('totalCount').textContent = videos.length;
+  document.getElementById('likedCount').textContent = likedYtIds.length;
+  document.getElementById('bmCount').textContent = bookmarks.length;
+}
+
+// ── 좋아요 ──
+async function toggleLike(e, ytId) {
+  e.stopPropagation();
+  if (likedYtIds.includes(ytId)) {
+    await db.from('likes').delete().eq('yt_id', ytId).eq('session_id', sessionId);
+    likedYtIds = likedYtIds.filter(x => x !== ytId);
+    const v = videos.find(v=>v.yt_id===ytId); if(v) v.like_count = Math.max(0,(v.like_count||1)-1);
+  } else {
+    await db.from('likes').insert({ yt_id: ytId, session_id: sessionId });
+    likedYtIds.push(ytId);
+    const v = videos.find(v=>v.yt_id===ytId); if(v) v.like_count = (v.like_count||0)+1;
+  }
+  localStorage.setItem('animai_liked_ytids', JSON.stringify(likedYtIds));
+  renderGrid(); updateStats();
+}
+
+// ── 북마크 (로컬) ──
+function toggleBm(e, ytId) {
+  e.stopPropagation();
+  if (bookmarks.includes(ytId)) { bookmarks = bookmarks.filter(x=>x!==ytId); toast('북마크 해제됨'); }
+  else { bookmarks.push(ytId); toast('북마크에 저장됨 ★'); }
+  localStorage.setItem('animai_bm', JSON.stringify(bookmarks));
+  renderGrid(); updateStats();
+}
+
+function renderBm() {
+  const g = document.getElementById('bmGrid');
+  const empty = document.getElementById('bmEmpty');
+  const saved = videos.filter(v => bookmarks.includes(v.yt_id));
+  if (!saved.length) { g.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+  g.innerHTML = saved.map(v => buildCard(v)).join('');
+}
+
+// ── 모달 ──
+async function openModal(ytId) {
+  const v = videos.find(v => v.yt_id === ytId); if(!v) return;
+  curModalId = ytId;
+  document.getElementById('modalVideo').innerHTML = `<iframe src="https://www.youtube.com/embed/${ytId}?autoplay=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+  document.getElementById('modalTitle').textContent = v.title;
+  document.getElementById('modalCh').textContent = v.channel||'';
+  document.getElementById('modalDate').textContent = v.published_at||'';
+  document.getElementById('modalLink').href = v.url;
+  document.getElementById('mLikeCnt').textContent = v.like_count||0;
+  document.getElementById('mLikeBtn').classList.toggle('active', likedYtIds.includes(ytId));
+  const bb = document.getElementById('mBmBtn');
+  bb.classList.toggle('active', bookmarks.includes(ytId));
+  bb.textContent = bookmarks.includes(ytId) ? '★ 북마크됨' : '☆ 북마크';
+  document.getElementById('videoModal').classList.add('open');
+  await loadCmts(ytId);
+}
+
+function closeModalBg(e) { if(e.target===document.getElementById('videoModal')) closeModal(); }
+function closeModal() { document.getElementById('videoModal').classList.remove('open'); document.getElementById('modalVideo').innerHTML=''; }
+
+async function mLike() {
+  await toggleLike({ stopPropagation: ()=>{} }, curModalId);
+  const v = videos.find(v=>v.yt_id===curModalId);
+  document.getElementById('mLikeCnt').textContent = v?.like_count||0;
+  document.getElementById('mLikeBtn').classList.toggle('active', likedYtIds.includes(curModalId));
+}
+
+function mBm() {
+  toggleBm({ stopPropagation: ()=>{} }, curModalId);
+  const bb = document.getElementById('mBmBtn');
+  bb.classList.toggle('active', bookmarks.includes(curModalId));
+  bb.textContent = bookmarks.includes(curModalId) ? '★ 북마크됨' : '☆ 북마크';
+}
+
+function copyLink() {
+  const v = videos.find(v=>v.yt_id===curModalId); if(!v) return;
+  navigator.clipboard.writeText(v.url).then(()=>toast('링크 복사됨!'));
+}
+
+// ── 댓글 ──
+async function loadCmts(ytId) {
+  const { data } = await db.from('comments').select('*').eq('yt_id', ytId).order('created_at', { ascending: true });
+  const cmts = data || [];
+  document.getElementById('cmtCount').textContent = cmts.length;
+  document.getElementById('cmtList').innerHTML = cmts.map(c => `
+    <div class="cmt">
+      <div class="cmt-av">${(c.name||'익')[0]}</div>
+      <div><div class="cmt-name">${c.name||'익명'}</div><div class="cmt-text">${c.text}</div><div class="cmt-time">${new Date(c.created_at).toLocaleString('ko-KR')}</div></div>
+    </div>`).join('') || '<div style="font-size:13px;color:var(--muted);padding:.75rem 0;">첫 댓글을 남겨보세요!</div>';
+}
+
+async function postCmt() {
+  const name = document.getElementById('cmtName').value.trim() || '익명';
+  const text = document.getElementById('cmtInput').value.trim();
+  if (!text) return;
+  const { error } = await db.from('comments').insert({ yt_id: curModalId, name, text });
+  if (error) { toast('댓글 등록 오류'); return; }
+  document.getElementById('cmtInput').value = '';
+  await loadCmts(curModalId);
+  toast('댓글 등록됨!');
+}
+
+// ── 페이지 전환 ──
+function showPage(name, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+  if (el) el.classList.add('active');
+  if (name === 'bookmarks') renderBm();
+  if (name === 'admin') renderAdmTable();
+}
+
+// ── 관리자 ──
+function adminLogin() {
+  if (document.getElementById('adminPw').value === ADMIN_PW) {
+    admLoggedIn = true;
+    document.getElementById('adminLoginArea').style.display='none';
+    document.getElementById('adminContent').style.display='block';
+    renderAdmTable(); renderKws(); toast('관리자 로그인됨');
+  } else toast('비밀번호 오류');
+}
+
+function renderKws() {
+  document.getElementById('kwList').innerHTML = keywords.map((k,i)=>`<span class="kw-chip">${k}<button onclick="removeKw(${i})">✕</button></span>`).join('');
+}
+function addKw() {
+  const v = document.getElementById('newKw').value.trim(); if(!v) return;
+  keywords.push(v); localStorage.setItem('animai_kw', JSON.stringify(keywords));
+  document.getElementById('newKw').value=''; renderKws(); toast('키워드 추가됨');
+}
+function removeKw(i) { keywords.splice(i,1); localStorage.setItem('animai_kw', JSON.stringify(keywords)); renderKws(); }
+
+function setAdmFilter(f, el) {
+  admFilter = f;
+  document.querySelectorAll('#page-admin .tag').forEach(t=>t.classList.remove('on'));
+  el.classList.add('on'); renderAdmTable();
+}
+
+async function renderAdmTable() {
+  if (!admLoggedIn) return;
+  const { data } = await db.from('videos').select('*').order('created_at', { ascending: false });
+  const list = admFilter === 'hidden' ? (data||[]).filter(v=>v.status==='hidden') : (data||[]);
+  document.getElementById('admTbody').innerHTML = list.map(v=>`<tr>
+    <td style="max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${v.title}</td>
+    <td>${v.channel||''}</td>
+    <td>${fmtV(v.views)}</td>
+    <td>${v.like_count||0}</td>
+    <td><span style="font-size:10px;padding:2px 8px;border-radius:4px;font-weight:700;${v.status==='approved'?'background:rgba(110,231,183,0.1);color:#6ee7b7;border:1px solid rgba(110,231,183,0.2);':'background:rgba(248,113,113,0.1);color:#f87171;border:1px solid rgba(248,113,113,0.2);'}">${v.status==='approved'?'표시중':'숨김'}</span></td>
+    <td>
+      ${v.status==='approved'?`<button class="adm-btn" onclick="admHide('${v.yt_id}')">숨기기</button>`:`<button class="adm-btn" onclick="admShow('${v.yt_id}')">복원</button>`}
+      <button class="adm-btn del" onclick="admDel('${v.yt_id}')">삭제</button>
+    </td>
+  </tr>`).join('');
+}
+
+async function admHide(ytId) { await db.from('videos').update({status:'hidden'}).eq('yt_id',ytId); await loadVideos(); renderAdmTable(); toast('숨김 처리됨'); }
+async function admShow(ytId) { await db.from('videos').update({status:'approved'}).eq('yt_id',ytId); await loadVideos(); renderAdmTable(); toast('복원됨'); }
+async function admDel(ytId) { await db.from('videos').delete().eq('yt_id',ytId); await loadVideos(); renderAdmTable(); toast('삭제됨'); }
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2500);
+}
+
+init();
+</script>
+</body>
+</html>
