@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ANIMAI — 애니메이션 실사화 AI 갤러리</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -192,16 +193,6 @@ footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center;
     </div>
   </div>
 
-  <div class="setup-box" id="ytApiBox">
-    <div class="setup-title">YouTube API 키 설정 (관리자용)</div>
-    <div class="setup-desc">영상을 수집하려면 YouTube Data API v3 키가 필요합니다. 방문자는 이 설정 없이 영상을 볼 수 있습니다.</div>
-    <div class="setup-row">
-      <input class="text-input" id="apiKeyInput" type="password" placeholder="AIzaSy... YouTube API 키 입력">
-      <button class="setup-btn" onclick="saveYTKey()">저장 및 검색</button>
-    </div>
-    <div class="status-msg" id="apiStatus"></div>
-  </div>
-
   <div class="toolbar">
     <div class="search-box">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
@@ -257,6 +248,15 @@ footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center;
       </div>
     </div>
     <div id="adminContent" style="display:none;">
+      <div class="admin-hd">YouTube API 키</div>
+      <div style="margin-bottom:1.5rem;">
+        <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">영상 수집에 사용할 YouTube Data API v3 키를 입력하세요. 이 기기에만 저장됩니다.</div>
+        <div class="setup-row">
+          <input class="text-input" id="apiKeyInput" type="password" placeholder="AIzaSy... YouTube API 키 입력">
+          <button class="setup-btn" onclick="saveYTKey()">저장 및 검색</button>
+        </div>
+        <div class="status-msg" id="apiStatus"></div>
+      </div>
       <div class="admin-hd">검색 키워드</div>
       <div style="margin-bottom:1.5rem;">
         <div class="kw-list" id="kwList"></div>
@@ -346,10 +346,14 @@ let admFilter = 'all';
 let sessionId = localStorage.getItem('animai_session');
 if (!sessionId) { sessionId = Math.random().toString(36).slice(2); localStorage.setItem('animai_session', sessionId); }
 
-if (ytApiKey) {
-  document.getElementById('apiKeyInput').value = ytApiKey;
-  document.getElementById('apiStatus').textContent = '✓ YouTube API 키 저장됨';
-  document.getElementById('apiStatus').className = 'status-msg ok';
+function fillApiKeyInput() {
+  const el = document.getElementById('apiKeyInput');
+  const st = document.getElementById('apiStatus');
+  if (el && ytApiKey) {
+    el.value = ytApiKey;
+    st.textContent = '✓ YouTube API 키 저장됨';
+    st.className = 'status-msg ok';
+  }
 }
 
 // ── 초기 로드 ──
@@ -628,6 +632,7 @@ function adminLogin() {
     admLoggedIn = true;
     document.getElementById('adminLoginArea').style.display='none';
     document.getElementById('adminContent').style.display='block';
+    fillApiKeyInput();
     renderAdmTable(); renderKws(); toast('관리자 로그인됨');
   } else toast('비밀번호 오류');
 }
