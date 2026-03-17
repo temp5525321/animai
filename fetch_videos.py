@@ -1,11 +1,19 @@
 import os
+import sys
 import requests
 import random
 from datetime import datetime
 
-YOUTUBE_API_KEY = os.environ['YOUTUBE_API_KEY']
-SUPABASE_URL = os.environ['SUPABASE_URL']
-SUPABASE_KEY = os.environ['SUPABASE_KEY']
+YOUTUBE_API_KEY = os.environ.get('YOUTUBE_API_KEY', '')
+SUPABASE_URL = os.environ.get('SUPABASE_URL', '').rstrip('/')
+SUPABASE_KEY = os.environ.get('SUPABASE_KEY', '')
+
+if not YOUTUBE_API_KEY or not SUPABASE_URL or not SUPABASE_KEY:
+    print('오류: 환경변수가 설정되지 않았습니다.')
+    print(f'  YOUTUBE_API_KEY: {"설정됨" if YOUTUBE_API_KEY else "없음"}')
+    print(f'  SUPABASE_URL: {"설정됨" if SUPABASE_URL else "없음"}')
+    print(f'  SUPABASE_KEY: {"설정됨" if SUPABASE_KEY else "없음"}')
+    sys.exit(1)
 
 KEYWORDS = [
     '애니메이션 실사화 AI',
