@@ -2,11 +2,13 @@ import os
 import sys
 import requests
 import random
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 
 YOUTUBE_API_KEY = os.environ.get('YOUTUBE_API_KEY', '')
 SUPABASE_URL = os.environ.get('SUPABASE_URL', '').rstrip('/')
 SUPABASE_KEY = os.environ.get('SUPABASE_KEY', '')
+
+KST = timezone(timedelta(hours=9))
 
 if not YOUTUBE_API_KEY or not SUPABASE_URL or not SUPABASE_KEY:
     print('오류: 환경변수가 설정되지 않았습니다.')
@@ -90,7 +92,8 @@ def insert_videos(videos):
     return res.status_code in (200, 201)
 
 def main():
-    print(f'[{datetime.now()}] 영상 수집 시작')
+    now_kst = datetime.now(KST).strftime('%Y-%m-%d %H:%M:%S KST')
+    print(f'[{now_kst}] 영상 수집 시작')
 
     # 기존 yt_id 목록 가져오기
     existing = get_existing_yt_ids()
@@ -131,7 +134,8 @@ def main():
                 'url': f'https://www.youtube.com/watch?v={vid}',
                 'views': int(st.get('viewCount', 0)),
                 'tag': guess_tag(sn.get('title', '')),
-                'status': 'approved'
+                'status': 'approved',
+                'created_at': datetime.now(KST).strftime('%Y-%m-%d %H:%M:%S+09')
             })
 
     if not new_videos:
@@ -152,7 +156,8 @@ def main():
         else:
             print(f'저장 실패 (청크 {i//chunk_size + 1})')
 
-    print(f'[완료] 총 {total_added}개 새 영상 추가됨')
+    end_kst = datetime.now(KST).strftime('%Y-%m-%d %H:%M:%S KST')
+    print(f'[{end_kst}] 총 {total_added}개 새 영상 추가됨')
 
 if __name__ == '__main__':
     main()
