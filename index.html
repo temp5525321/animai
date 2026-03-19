@@ -447,6 +447,12 @@ let curMlbModalId = null;
 
 // ── 초기화 ──
 async function init() {
+  // URL 해시로 페이지 복원
+  const hash = location.hash.replace('#','');
+  const validPages = ['youtube','mlb','bookmarks','admin'];
+  const startPage = validPages.includes(hash) ? hash : 'youtube';
+  showPlatform(startPage);
+
   await Promise.all([loadVideos(), loadMlbPosts()]);
   const { data: { session } } = await db.auth.getSession();
   if (session?.user) {
@@ -520,6 +526,8 @@ function showPlatform(name) {
   if (name==='admin') renderAdmTable();
   if (name==='mlb') renderMlbGrid();
   document.getElementById('fetchBtn').style.display = name==='youtube' ? '' : 'none';
+  // URL 해시 업데이트 (새로고침 시 페이지 유지)
+  history.replaceState(null, '', '#' + name);
 }
 
 // ── 주제 탭 ──
@@ -934,7 +942,12 @@ function buildMlbCard(p) {
   } else {
     thumbHtml = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px;">영상</div>`;
   }
-  const summary = p.summary ? p.summary.slice(0,80)+'...' : '';
+  const rawSummary = p.summary ? p.summary
+    .replace(/Video\s*태그를\s*지원하지\s*않는\s*브라우저입니다\.?/gi, '')
+    .replace(/추천\d+공유/g, '').replace(/추천\s*\d+/g, '')
+    .replace(/공유\s*\d*/g, '').replace(/신고\s*\d*/g, '')
+    .replace(/\s{2,}/g, ' ').trim() : '';
+  const summary = rawSummary ? rawSummary.slice(0,80)+'...' : '';
   return `<div class="card" id="mlbcard-${p.post_id}">
     <div class="thumb" style="cursor:pointer;" onclick="openMlbModal('${p.post_id}')">
       ${thumbHtml}
@@ -1063,6 +1076,7 @@ async function openMlbModal(postId) {
   // 본문 요약 텍스트 (추천/공유 등 UI 텍스트 제거)
   const rawSummary = p.summary || '';
   const cleanSummary = rawSummary
+    .replace(/Video\s*태그를\s*지원하지\s*않는\s*브라우저입니다\.?/gi, '')
     .replace(/추천\d+공유/g, '')
     .replace(/추천\s*\d+/g, '')
     .replace(/공유\s*\d*/g, '')
