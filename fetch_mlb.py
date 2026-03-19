@@ -131,7 +131,9 @@ def fetch_posts(session, pages=3):
                     src = thumb_el.get('src', '')
                     if src and not src.startswith('http'):
                         src = BASE_URL + src
-                    thumb = src
+                    # 프로필 이미지, 로고 등 제외
+                    if src and not any(x in src for x in ['Profile', 'profile', 'logo', 'btn', 'ico', 'ugc/WWW']):
+                        thumb = src
 
                 posts.append({
                     'post_id': post_id,
