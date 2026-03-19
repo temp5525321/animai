@@ -42,16 +42,15 @@ def login():
         'bid': MLBPARK_ID,
         'bpw': MLBPARK_PW
     }
-    res = session.post(LOGIN_URL, data=data, allow_redirects=True)
-    print(f'로그인 시도 (status: {res.status_code})')
-    # 쿠키 확인
-    cookie_keys = list(session.cookies.keys())
-    print(f'쿠키: {cookie_keys}')
-    if res.status_code == 200:
-        print('로그인 성공')
+    try:
+        res = session.post(LOGIN_URL, data=data, allow_redirects=True, timeout=15)
+        print(f'로그인 응답 status: {res.status_code}')
+        print(f'최종 URL: {res.url}')
+        print(f'쿠키: {list(session.cookies.keys())}')
+        print(f'응답 내용 (앞 500자): {res.text[:500]}')
         return session
-    else:
-        print(f'로그인 실패: {res.status_code}')
+    except Exception as e:
+        print(f'로그인 예외 발생: {e}')
         return None
 
 def get_existing_post_ids():
@@ -193,7 +192,9 @@ def main():
 
     session = login()
     if not session:
-        sys.exit(1)
+        print('세션 생성 실패, 비로그인으로 시도합니다.')
+        session = requests.Session()
+        session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36'})
 
     existing = get_existing_post_ids()
     print(f'기존 게시물 수: {len(existing)}개')
