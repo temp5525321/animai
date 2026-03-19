@@ -219,8 +219,27 @@ def fetch_post_detail(session, post):
                 if 'youtube.com/watch' in href or 'youtu.be/' in href:
                     video_urls.append(href)
 
-            post['video_urls'] = list(set(video_urls))[:5]
-            print(f'  상세: 이미지 {len(images)}개, 영상 {len(video_urls)}개, 요약 {len(text)}자')
+            # 중복 제거
+            seen = set()
+            unique_urls = []
+            for u in video_urls:
+                if u not in seen:
+                    seen.add(u)
+                    unique_urls.append(u)
+            post['video_urls'] = unique_urls[:5]
+
+            # YouTube 영상이 있으면 썸네일 추출
+            if not post.get('thumb'):
+                for u in unique_urls:
+                    vid = ''
+                    if 'embed/' in u: vid = u.split('embed/')[1].split('?')[0]
+                    elif 'v=' in u: vid = u.split('v=')[1].split('&')[0]
+                    elif 'youtu.be/' in u: vid = u.split('youtu.be/')[1].split('?')[0]
+                    if vid:
+                        post['thumb'] = f'https://img.youtube.com/vi/{vid}/mqdefault.jpg'
+                        break
+
+            print(f'  상세: 이미지 {len(images)}개, 영상 {len(unique_urls)}개, 요약 {len(text)}자')
 
         else:
             post['summary'] = ''

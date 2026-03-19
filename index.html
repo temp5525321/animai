@@ -928,17 +928,33 @@ function buildMlbCard(p) {
   const saved = mlbBookmarks.includes(p.post_id);
   const videoUrls = p.video_urls || [];
   const mp4Videos = videoUrls.filter(u => u && !u.includes('youtube') && !u.includes('youtu.be'));
-  const thumbSrc = p.thumb ? `/api/proxy?url=${encodeURIComponent(p.thumb)}` : '';
+  const ytVideos = videoUrls.filter(u => u && (u.includes('youtube') || u.includes('youtu.be')));
 
-  // 썸네일: mp4가 있으면 video 태그로 첫 프레임, 없으면 이미지
+  // YouTube vid 추출
+  let ytVid = '';
+  if (ytVideos.length > 0) {
+    const u = ytVideos[0];
+    if (u.includes('embed/')) ytVid = u.split('embed/')[1].split('?')[0];
+    else if (u.includes('v=')) ytVid = u.split('v=')[1].split('&')[0];
+    else if (u.includes('youtu.be/')) ytVid = u.split('youtu.be/')[1].split('?')[0];
+  }
+
+  // 썸네일 결정: poster > YouTube 썸네일 > mp4 첫프레임 > 빈칸
+  const posterSrc = p.thumb && !p.thumb.startsWith('https://img.youtube.com')
+    ? `/api/proxy?url=${encodeURIComponent(p.thumb)}` : p.thumb || '';
+  const ytThumb = ytVid ? `https://img.youtube.com/vi/${ytVid}/mqdefault.jpg` : '';
+
   let thumbHtml;
   if (mp4Videos.length > 0) {
     const proxyUrl = `/api/proxy?url=${encodeURIComponent(mp4Videos[0])}`;
-    thumbHtml = `<video preload="metadata" muted playsinline style="width:100%;height:100%;object-fit:cover;" onloadedmetadata="this.currentTime=0.1">
+    const poster = posterSrc ? `poster="${posterSrc}"` : '';
+    thumbHtml = `<video preload="metadata" muted playsinline ${poster} style="width:100%;height:100%;object-fit:cover;" onloadedmetadata="this.currentTime=0.1">
       <source src="${proxyUrl}" type="video/mp4">
     </video>`;
-  } else if (thumbSrc) {
-    thumbHtml = `<img src="${thumbSrc}" alt="" loading="lazy" onerror="this.style.display='none'">`;
+  } else if (posterSrc) {
+    thumbHtml = `<img src="${posterSrc}" alt="" loading="lazy" onerror="this.style.display='none'">`;
+  } else if (ytThumb) {
+    thumbHtml = `<img src="${ytThumb}" alt="" loading="lazy">`;
   } else {
     thumbHtml = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px;">영상</div>`;
   }
@@ -1025,8 +1041,8 @@ async function openMlbModal(postId) {
   let contentHtml = '';
 
   const videoUrls = p.video_urls || [];
-  const ytVideos = videoUrls.filter(u => u && (u.includes('youtube') || u.includes('youtu.be')));
-  const mp4Videos = videoUrls.filter(u => u && !u.includes('youtube') && !u.includes('youtu.be'));
+  const ytVideos = [...new Set(videoUrls.filter(u => u && (u.includes('youtube') || u.includes('youtu.be'))))];
+  const mp4Videos = [...new Set(videoUrls.filter(u => u && !u.includes('youtube') && !u.includes('youtu.be')))];
 
   // YouTube 영상 embed
   if (ytVideos.length > 0) {
