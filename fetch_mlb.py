@@ -115,8 +115,15 @@ def fetch_posts(session, pages=3):
                     import hashlib
                     post_id = hashlib.md5(url.encode()).hexdigest()[:12]
 
-                author_el = row.select_one('td:nth-child(3) a') or row.select_one('td:nth-child(3)')
-                author = author_el.get_text(strip=True) if author_el else '익명'
+                # 작성자: data-unick 속성 또는 td 텍스트
+                author = ''
+                author_el = row.select_one('[data-unick]')
+                if author_el:
+                    import urllib.parse
+                    author = urllib.parse.unquote(author_el.get('data-unick', ''))
+                if not author:
+                    td_author = row.select_one('td:nth-child(3) a') or row.select_one('td:nth-child(3)')
+                    author = td_author.get_text(strip=True) if td_author else '익명'
 
                 thumb_el = row.select_one('img:not([src*="btn"]):not([src*="ico"])')
                 thumb = ''
@@ -193,12 +200,12 @@ def fetch_post_detail(session, post):
                     if not src.startswith('http'):
                         src = BASE_URL + src
                     video_urls.append(src)
-                # 썸네일로 poster 이미지 활용
+                # poster를 항상 썸네일로 우선 사용 (야구 로고 덮어씌우기)
                 poster = v.get('poster', '')
-                if poster and not post.get('thumb'):
+                if poster:
                     if not poster.startswith('http'):
                         poster = BASE_URL + poster
-                    post['thumb'] = poster
+                    post['thumb'] = poster  # 항상 덮어씌움
 
             # YouTube iframe
             for iframe in content_el.select('iframe'):
@@ -269,15 +276,23 @@ def main():
 
     # 상세 페이지에서 본문 + 이미지 + 영상 추출
     enriched = []
-    for p in new_posts[:10]:  # 최대 10개
+    for p in new_posts[:20]:  # 더 많이 시도해서 영상 있는 것 10개 채우기
         p = fetch_post_detail(session, p)
+        video_urls = p.get('video_urls', [])
+        images = p.get('images', [])
+
+        # 영상이 있는 게시물만 저장
+        if not video_urls:
+            print(f'  영상 없음, 스킵: {p["title"][:30]}')
+            continue
+
         enriched.append({
             'post_id': p['post_id'],
             'title': p['title'],
             'summary': p.get('summary', ''),
             'content_html': p.get('content_html', ''),
-            'images': p.get('images', []),
-            'video_urls': p.get('video_urls', []),
+            'images': images,
+            'video_urls': video_urls,
             'thumb': p.get('thumb', ''),
             'url': p['url'],
             'author': p['author'],
@@ -285,6 +300,9 @@ def main():
             'status': 'approved',
             'created_at': datetime.now(KST).strftime('%Y-%m-%d %H:%M:%S+09')
         })
+
+        if len(enriched) >= 10:  # 최대 10개
+            break
 
     success = insert_posts(enriched)
     if success:

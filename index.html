@@ -919,9 +919,10 @@ function renderMlbGrid() {
 function buildMlbCard(p) {
   const liked = mlbLikedIds.includes(p.post_id);
   const saved = mlbBookmarks.includes(p.post_id);
-  const thumbHtml = p.thumb
-    ? `<img src="${p.thumb}" alt="" loading="lazy" onerror="this.style.display='none'">`
-    : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--muted);font-size:12px;"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>게시물</div>`;
+  const thumbSrc = p.thumb ? `/api/proxy?url=${encodeURIComponent(p.thumb)}` : '';
+  const thumbHtml = thumbSrc
+    ? `<img src="${thumbSrc}" alt="" loading="lazy" onerror="this.parentElement.innerHTML='<div style=\'width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px;\'>영상</div>'">`
+    : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--muted);font-size:12px;"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>영상</div>`;
   const summary = p.summary ? p.summary.slice(0,80)+'...' : '';
   return `<div class="card" id="mlbcard-${p.post_id}">
     <div class="thumb" style="cursor:pointer;" onclick="openMlbModal('${p.post_id}')">
@@ -1042,16 +1043,29 @@ async function openMlbModal(postId) {
 
   thumbEl.innerHTML = contentHtml;
 
-  // 본문 요약 텍스트
+  // 본문 요약 텍스트 (추천/공유 등 UI 텍스트 제거)
+  const rawSummary = p.summary || '';
+  const cleanSummary = rawSummary
+    .replace(/추천\d+공유/g, '')
+    .replace(/추천\s*\d+/g, '')
+    .replace(/공유\s*\d*/g, '')
+    .replace(/신고\s*\d*/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
   const summaryEl = document.getElementById('mlbModalSummary');
-  summaryEl.textContent = p.summary || '본문 내용이 없습니다. 원본에서 확인해주세요.';
+  summaryEl.textContent = cleanSummary || '본문 내용이 없습니다. 원본에서 확인해주세요.';
 
   document.getElementById('mlbModal').classList.add('open');
   await loadMlbCmts(postId);
 }
 
 function closeMlbModalBg(e) { if(e.target===document.getElementById('mlbModal')) closeMlbModal(); }
-function closeMlbModal() { document.getElementById('mlbModal').classList.remove('open'); }
+function closeMlbModal() {
+  // 영상 정지
+  document.querySelectorAll('#mlbModalThumb video').forEach(v => { v.pause(); v.src=''; });
+  document.getElementById('mlbModalThumb').innerHTML = '';
+  document.getElementById('mlbModal').classList.remove('open');
+}
 
 async function mlbLike() {
   await toggleMlbLike({stopPropagation:()=>{}}, curMlbModalId);
