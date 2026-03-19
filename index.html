@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="referrer" content="no-referrer">
 <title>AIPULSE — AI 콘텐츠 큐레이션 허브</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
@@ -927,7 +926,7 @@ function buildMlbCard(p) {
   return `<div class="card" id="mlbcard-${p.post_id}">
     <div class="thumb" style="cursor:pointer;" onclick="openMlbModal('${p.post_id}')">
       ${thumbHtml}
-      <div class="play-ov"><div class="play-circle" style="background:linear-gradient(135deg,var(--mlb),#2563eb);"><svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8" stroke="white" stroke-width="2" fill="none"/></svg></div></div>
+      <div class="play-ov"><div class="play-circle" style="background:linear-gradient(135deg,var(--mlb),#2563eb);"><div class="play-tri"></div></div></div>
       <span class="platform-badge badge-mlb">MLB</span>
       <button class="like-btn${liked?' liked':''}" onclick="toggleMlbLike(event,'${p.post_id}')">♥ ${p.like_count||0}</button>
       <button class="bm-btn${saved?' saved':''}" onclick="toggleMlbBm(event,'${p.post_id}')">☆</button>
@@ -1011,7 +1010,13 @@ async function openMlbModal(postId) {
       if (url.includes('embed/')) vid = url.split('embed/')[1].split('?')[0];
       else if (url.includes('v=')) vid = url.split('v=')[1].split('&')[0];
       else if (url.includes('youtu.be/')) vid = url.split('youtu.be/')[1].split('?')[0];
-      return vid ? `<div style="aspect-ratio:16/9;margin-bottom:10px;border-radius:8px;overflow:hidden;"><iframe src="https://www.youtube.com/embed/${vid}" allow="autoplay; encrypted-media" allowfullscreen style="width:100%;height:100%;border:none;"></iframe></div>` : '';
+      if (!vid) return '';
+      return `<div style="aspect-ratio:16/9;margin-bottom:10px;border-radius:8px;overflow:hidden;background:#000;">
+        <iframe src="https://www.youtube.com/embed/${vid}?rel=0" 
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+          allowfullscreen style="width:100%;height:100%;border:none;display:block;"></iframe>
+      </div>
+      <a href="https://www.youtube.com/watch?v=${vid}" target="_blank" style="display:block;text-align:center;margin-top:-4px;margin-bottom:10px;font-size:12px;color:var(--accent);text-decoration:none;">▶ YouTube에서 보기 ↗</a>`;
     }).filter(Boolean).join('');
   }
 
@@ -1020,7 +1025,7 @@ async function openMlbModal(postId) {
     contentHtml += mp4Videos.map(url => {
       const proxyUrl = `/api/proxy?url=${encodeURIComponent(url)}`;
       return `<div style="margin-bottom:10px;">
-        <video controls style="width:100%;aspect-ratio:16/9;border-radius:8px;background:#000;" preload="none">
+        <video controls preload="metadata" style="width:100%;aspect-ratio:16/9;border-radius:8px;background:#000;display:block;">
           <source src="${proxyUrl}" type="video/mp4">
         </video>
         <a href="${url}" target="_blank" style="display:block;text-align:center;margin-top:6px;font-size:12px;color:var(--accent);text-decoration:none;">▶ 영상이 재생되지 않으면 여기서 보기 ↗</a>
