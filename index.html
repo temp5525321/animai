@@ -918,10 +918,22 @@ function renderMlbGrid() {
 function buildMlbCard(p) {
   const liked = mlbLikedIds.includes(p.post_id);
   const saved = mlbBookmarks.includes(p.post_id);
+  const videoUrls = p.video_urls || [];
+  const mp4Videos = videoUrls.filter(u => u && !u.includes('youtube') && !u.includes('youtu.be'));
   const thumbSrc = p.thumb ? `/api/proxy?url=${encodeURIComponent(p.thumb)}` : '';
-  const thumbHtml = thumbSrc
-    ? `<img src="${thumbSrc}" alt="" loading="lazy" onerror="this.parentElement.innerHTML='<div style=\'width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px;\'>영상</div>'">`
-    : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--muted);font-size:12px;"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>영상</div>`;
+
+  // 썸네일: mp4가 있으면 video 태그로 첫 프레임, 없으면 이미지
+  let thumbHtml;
+  if (mp4Videos.length > 0) {
+    const proxyUrl = `/api/proxy?url=${encodeURIComponent(mp4Videos[0])}`;
+    thumbHtml = `<video preload="metadata" muted playsinline style="width:100%;height:100%;object-fit:cover;" onloadedmetadata="this.currentTime=0.1">
+      <source src="${proxyUrl}" type="video/mp4">
+    </video>`;
+  } else if (thumbSrc) {
+    thumbHtml = `<img src="${thumbSrc}" alt="" loading="lazy" onerror="this.style.display='none'">`;
+  } else {
+    thumbHtml = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px;">영상</div>`;
+  }
   const summary = p.summary ? p.summary.slice(0,80)+'...' : '';
   return `<div class="card" id="mlbcard-${p.post_id}">
     <div class="thumb" style="cursor:pointer;" onclick="openMlbModal('${p.post_id}')">
