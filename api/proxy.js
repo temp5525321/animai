@@ -11,7 +11,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'URL parameter required' });
   }
 
-  const allowedDomains = ['mlbpark.donga.com', 'image.donga.com', 'simg.donga.com', 'donga.com'];
+  const allowedDomains = ['mlbpark.donga.com', 'image.donga.com', 'simg.donga.com', 'donga.com', 'tpzlfh.uk', 'mlbpark.tpzlfh.uk'];
   let parsedUrl;
   try {
     parsedUrl = new URL(decodeURIComponent(url));
