@@ -64,11 +64,14 @@ def get_existing_post_ids():
 def fetch_posts(session, pages=3):
     posts = []
     for page in range(1, pages + 1):
+        # 말머리 '영화' + 제목에 AI 포함 검색
         params = {
             'b': 'bullpen',
-            'search_select': 'sct',
-            'search_input': '영화',
-            'page': page
+            'search_select': 'sfl',  # 제목 검색
+            'search_input': 'AI',    # AI 키워드
+            'subselect': 'sct',      # 말머리 필터
+            'subquery': '영화',       # 말머리: 영화
+            'p': page
         }
         res = session.get(BOARD_URL, params=params)
         if res.status_code != 200:
@@ -76,43 +79,22 @@ def fetch_posts(session, pages=3):
             continue
 
         soup = BeautifulSoup(res.text, 'html.parser')
+        table = soup.select_one('table.tbl_type01')
+        if not table:
+            print(f'페이지 {page}: 테이블 없음')
+            continue
 
-        # 디버그: 첫 페이지만 HTML 구조 출력
-        if page == 1:
-            # 테이블/리스트 구조 파악
-            tables = soup.find_all('table')
-            print(f'테이블 수: {len(tables)}')
-            for i, t in enumerate(tables[:3]):
-                print(f'테이블{i} class: {t.get("class")}')
-                rows = t.find_all('tr')
-                print(f'  tr 수: {len(rows)}')
-                if rows:
-                    print(f'  첫 tr class: {rows[0].get("class")}')
-                    if len(rows) > 1:
-                        print(f'  두번째 tr class: {rows[1].get("class")}')
-                        print(f'  두번째 tr HTML: {str(rows[1])[:300]}')
-
-            # 링크 패턴 확인
-            links = soup.select('a[href*="bbs_view"]') or soup.select('a[href*="num="]') or soup.select('a[href*="view"]')
-            print(f'게시물 링크 수: {len(links)}')
-            if links:
-                print(f'첫 링크: {links[0].get("href")} / 텍스트: {links[0].get_text(strip=True)[:50]}')
-
-        # 실제 셀렉터 시도
-        rows = (soup.select('tr.list-item') or
-                soup.select('table.board-list tbody tr') or
-                soup.select('tbody tr') or
-                soup.select('.list tr'))
-
+        rows = table.select('tbody tr') or table.select('tr')
         print(f'페이지 {page}: {len(rows)}개 행 발견')
 
         for row in rows:
             try:
-                title_el = (row.select_one('td.title a') or
-                           row.select_one('.title a') or
-                           row.select_one('a[href*="bbs_view"]') or
-                           row.select_one('a[href*="num="]') or
-                           row.select_one('td a'))
+                # 공지 제외
+                if row.select_one('td') and row.select_one('td').get_text(strip=True) == '공지':
+                    continue
+
+                # 링크 추출 (b=bullpen&m=view 패턴)
+                title_el = row.select_one('a[href*="m=view"]') or row.select_one('td.t_left a') or row.select_one('a[href*="bullpen"]')
                 if not title_el:
                     continue
 
@@ -120,39 +102,34 @@ def fetch_posts(session, pages=3):
                 if not title or len(title) < 2:
                     continue
 
-                if 'AI' not in title and 'ai' not in title.lower():
-                    continue
-
                 href = title_el.get('href', '')
-                if href.startswith('/'):
-                    url = BASE_URL + href
-                elif not href.startswith('http'):
-                    url = BASE_URL + '/' + href
-                else:
+                if href.startswith('http'):
                     url = href
-
-                post_id = ''
-                if 'num=' in url:
-                    post_id = url.split('num=')[1].split('&')[0]
-                elif 'seq=' in url:
-                    post_id = url.split('seq=')[1].split('&')[0]
+                elif href.startswith('/'):
+                    url = BASE_URL + href
                 else:
+                    url = BASE_URL + '/' + href
+
+                # post_id: URL에서 id= 파라미터 추출
+                post_id = ''
+                if 'id=' in url:
+                    post_id = url.split('id=')[1].split('&')[0]
+                if not post_id:
                     import hashlib
                     post_id = hashlib.md5(url.encode()).hexdigest()[:12]
 
-                if not post_id:
-                    continue
-
-                author_el = (row.select_one('td.name') or
-                            row.select_one('.author') or
-                            row.select_one('td.nick') or
-                            row.select_one('td:nth-child(3)'))
+                # 작성자
+                author_el = row.select_one('td:nth-child(3) a') or row.select_one('td:nth-child(3)')
                 author = author_el.get_text(strip=True) if author_el else '익명'
 
-                thumb_el = row.select_one('img')
-                thumb = thumb_el.get('src', '') if thumb_el else ''
-                if thumb and not thumb.startswith('http'):
-                    thumb = BASE_URL + thumb
+                # 썸네일
+                thumb_el = row.select_one('img:not([src*="btn"]):not([src*="ico"])')
+                thumb = ''
+                if thumb_el:
+                    src = thumb_el.get('src', '')
+                    if src and not src.startswith('http'):
+                        src = BASE_URL + src
+                    thumb = src
 
                 posts.append({
                     'post_id': post_id,
@@ -161,14 +138,11 @@ def fetch_posts(session, pages=3):
                     'author': author,
                     'thumb': thumb
                 })
-                print(f'  발견: {title[:40]}')
+                print(f'  발견: {title[:50]}')
 
             except Exception as e:
                 print(f'행 파싱 오류: {e}')
                 continue
-
-        if page == 1:
-            break  # 디버그용: 첫 페이지만
 
     return posts
 
