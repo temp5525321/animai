@@ -64,13 +64,13 @@ def get_existing_post_ids():
 def fetch_posts(session, pages=3):
     posts = []
     for page in range(1, pages + 1):
-        # 말머리 '영화' + 제목에 AI 포함 검색
+        # 제목+본문에서 AI 검색, 말머리 영화 필터
         params = {
             'b': 'bullpen',
-            'search_select': 'sfl',  # 제목 검색
-            'search_input': 'AI',    # AI 키워드
-            'subselect': 'sct',      # 말머리 필터
-            'subquery': '영화',       # 말머리: 영화
+            'search_select': 'sfl',
+            'search_input': 'AI',
+            'subselect': 'sct',
+            'subquery': '영화',
             'p': page
         }
         res = session.get(BOARD_URL, params=params)
@@ -90,11 +90,13 @@ def fetch_posts(session, pages=3):
         for row in rows:
             try:
                 # 공지 제외
-                if row.select_one('td') and row.select_one('td').get_text(strip=True) == '공지':
+                first_td = row.select_one('td')
+                if first_td and first_td.get_text(strip=True) == '공지':
                     continue
 
-                # 링크 추출 (b=bullpen&m=view 패턴)
-                title_el = row.select_one('a[href*="m=view"]') or row.select_one('td.t_left a') or row.select_one('a[href*="bullpen"]')
+                title_el = (row.select_one('a[href*="m=view"]') or
+                           row.select_one('td.t_left a') or
+                           row.select_one('a[href*="bullpen"]'))
                 if not title_el:
                     continue
 
@@ -102,15 +104,13 @@ def fetch_posts(session, pages=3):
                 if not title or len(title) < 2:
                     continue
 
-                href = title_el.get('href', '')
-                if href.startswith('http'):
-                    url = href
-                elif href.startswith('/'):
-                    url = BASE_URL + href
-                else:
-                    url = BASE_URL + '/' + href
+                # AI 키워드 필터링 (대소문자 구분없이)
+                if 'AI' not in title and 'ai' not in title.lower() and 'Ai' not in title:
+                    continue
 
-                # post_id: URL에서 id= 파라미터 추출
+                href = title_el.get('href', '')
+                url = href if href.startswith('http') else (BASE_URL + href if href.startswith('/') else BASE_URL + '/' + href)
+
                 post_id = ''
                 if 'id=' in url:
                     post_id = url.split('id=')[1].split('&')[0]
@@ -118,11 +118,9 @@ def fetch_posts(session, pages=3):
                     import hashlib
                     post_id = hashlib.md5(url.encode()).hexdigest()[:12]
 
-                # 작성자
                 author_el = row.select_one('td:nth-child(3) a') or row.select_one('td:nth-child(3)')
                 author = author_el.get_text(strip=True) if author_el else '익명'
 
-                # 썸네일
                 thumb_el = row.select_one('img:not([src*="btn"]):not([src*="ico"])')
                 thumb = ''
                 if thumb_el:
@@ -138,7 +136,7 @@ def fetch_posts(session, pages=3):
                     'author': author,
                     'thumb': thumb
                 })
-                print(f'  발견: {title[:50]}')
+                print(f'  AI 발견: {title[:50]}')
 
             except Exception as e:
                 print(f'행 파싱 오류: {e}')
@@ -178,11 +176,16 @@ def fetch_post_detail(session, post):
     return post
 
 def insert_posts(posts):
+    # upsert로 중복 방지
+    headers = {**HEADERS, 'Prefer': 'resolution=merge-duplicates,return=minimal'}
     res = requests.post(
         f'{SUPABASE_URL}/rest/v1/mlb_posts',
-        headers=HEADERS,
+        headers=headers,
         json=posts
     )
+    print(f'저장 응답 status: {res.status_code}')
+    if res.status_code not in (200, 201):
+        print(f'저장 오류 내용: {res.text[:300]}')
     return res.status_code in (200, 201)
 
 def main():
