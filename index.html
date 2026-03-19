@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ANIMAI — 애니메이션 실사화 AI 갤러리</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
+<title>AIPULSE — AI 콘텐츠 큐레이션 허브</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -14,56 +14,54 @@
   --text: #eeeeff; --muted: #7070a0;
   --accent: #a78bfa; --accent2: #f472b6;
   --glow: rgba(167,139,250,0.12);
+  --yt: #ff4444; --mlb: #4a9eff;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { background: var(--bg); color: var(--text); font-family: 'Noto Sans KR', sans-serif; min-height: 100vh; overflow-x: hidden; }
 body::before { content: ''; position: fixed; inset: 0; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.025) 2px, rgba(0,0,0,0.025) 4px); pointer-events: none; z-index: 0; }
 
-nav { position: sticky; top: 0; z-index: 100; background: rgba(8,8,16,0.93); backdrop-filter: blur(16px); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 2rem; height: 56px; gap: 1.5rem; }
-.logo { font-family: 'Bebas Neue'; font-size: 24px; letter-spacing: 4px; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; cursor: pointer; }
-.logo-sub { font-size: 11px; color: var(--muted); -webkit-text-fill-color: var(--muted); }
-.nav-links { display: flex; }
-.nav-link { font-size: 13px; padding: 6px 12px; color: var(--muted); cursor: pointer; border-radius: 6px; transition: all 0.15s; }
-.nav-link:hover, .nav-link.active { color: var(--accent); background: var(--glow); }
+/* NAV */
+nav { position: sticky; top: 0; z-index: 100; background: rgba(8,8,16,0.95); backdrop-filter: blur(16px); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 2rem; height: 56px; gap: 1.5rem; }
+.logo { font-family: 'Bebas Neue'; font-size: 26px; letter-spacing: 5px; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; cursor: pointer; flex-shrink: 0; }
+.nav-platform-tabs { display: flex; gap: 2px; }
+.nav-ptab { font-size: 13px; padding: 6px 14px; color: var(--muted); cursor: pointer; border-radius: 6px; transition: all 0.15s; border: 1px solid transparent; font-family: 'Noto Sans KR'; }
+.nav-ptab:hover { color: var(--text); background: var(--glow); }
+.nav-ptab.active-yt { color: var(--yt); background: rgba(255,68,68,0.08); border-color: rgba(255,68,68,0.2); }
+.nav-ptab.active-mlb { color: var(--mlb); background: rgba(74,158,255,0.08); border-color: rgba(74,158,255,0.2); }
+.nav-ptab.active-bm { color: var(--accent); background: var(--glow); border-color: var(--border2); }
 .nav-right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
 .btn-primary { font-family: 'Noto Sans KR'; font-size: 12px; padding: 7px 16px; border-radius: 6px; border: none; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; font-weight: 700; cursor: pointer; }
 .btn-primary:hover { opacity: 0.85; }
 
-.hero { padding: 3rem 2rem 2rem; position: relative; z-index: 1; }
+/* HERO */
+.hero { padding: 2.5rem 2rem 1.5rem; position: relative; z-index: 1; }
 .hero::after { content: ''; position: absolute; top: 0; right: 0; width: 50%; height: 100%; background: radial-gradient(ellipse at 80% 40%, rgba(167,139,250,0.07) 0%, transparent 65%); pointer-events: none; }
-.hero h1 { font-family: 'Bebas Neue'; font-size: clamp(52px, 9vw, 108px); letter-spacing: 3px; line-height: 0.88; }
+.hero h1 { font-family: 'Bebas Neue'; font-size: clamp(48px, 8vw, 96px); letter-spacing: 3px; line-height: 0.88; }
 .t1 { color: var(--text); }
 .t2 { background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 .hero p { margin-top: 1rem; color: var(--muted); font-size: 14px; max-width: 500px; line-height: 1.7; }
-.stats-row { display: flex; gap: 2rem; margin-top: 1.5rem; }
-.stat-num { font-family: 'Bebas Neue'; font-size: 30px; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.stats-row { display: flex; gap: 2rem; margin-top: 1.25rem; flex-wrap: wrap; }
+.stat-num { font-family: 'Bebas Neue'; font-size: 28px; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 .stat-label { font-size: 10px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
 
-/* API KEY SETUP */
-.setup-box { background: var(--bg2); border: 1px solid var(--border2); border-radius: 14px; padding: 1.5rem; margin: 0 2rem 2rem; position: relative; z-index: 1; }
-.setup-title { font-family: 'Bebas Neue'; font-size: 18px; letter-spacing: 2px; color: var(--accent); margin-bottom: 6px; }
-.setup-desc { font-size: 13px; color: var(--muted); margin-bottom: 1rem; line-height: 1.6; }
-.setup-row { display: flex; gap: 8px; }
-.text-input { flex: 1; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 9px 14px; color: var(--text); font-size: 13px; font-family: 'Noto Sans KR'; outline: none; }
-.text-input:focus { border-color: var(--accent); }
-.setup-btn { font-family: 'Noto Sans KR'; font-size: 13px; padding: 9px 20px; border-radius: 8px; border: none; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; font-weight: 700; cursor: pointer; white-space: nowrap; }
-.status-msg { margin-top: 8px; font-size: 12px; }
-.ok { color: #6ee7b7; } .err { color: #f87171; }
+/* TOPIC TABS (YouTube 주제별) */
+.topic-tabs { padding: 0 2rem 1rem; display: flex; gap: 6px; flex-wrap: wrap; position: relative; z-index: 1; border-bottom: 1px solid var(--border); margin-bottom: 1rem; }
+.topic-tab { font-size: 12px; padding: 7px 16px; border-radius: 20px; border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer; transition: all 0.15s; font-family: 'Noto Sans KR'; white-space: nowrap; }
+.topic-tab:hover { border-color: var(--border2); color: var(--text); }
+.topic-tab.on { background: rgba(255,68,68,0.1); border-color: var(--yt); color: var(--yt); font-weight: 700; }
 
+/* TOOLBAR */
 .toolbar { padding: 0 2rem 1.5rem; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; position: relative; z-index: 1; }
 .search-box { display: flex; align-items: center; gap: 8px; background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; flex: 1; min-width: 180px; max-width: 320px; }
 .search-box svg { width: 14px; height: 14px; opacity: 0.3; flex-shrink: 0; }
 .search-box input { background: none; border: none; outline: none; color: var(--text); font-size: 13px; font-family: 'Noto Sans KR'; width: 100%; }
 .search-box input::placeholder { color: var(--muted); }
-.filter-group { display: flex; gap: 4px; flex-wrap: wrap; }
-.tag { font-size: 12px; padding: 6px 13px; border-radius: 20px; border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer; transition: all 0.15s; font-family: 'Noto Sans KR'; }
-.tag:hover { border-color: var(--border2); color: var(--text); }
-.tag.on { background: var(--glow); border-color: var(--accent); color: var(--accent); font-weight: 700; }
 .sort-sel { background: var(--bg2); border: 1px solid var(--border); color: var(--muted); font-size: 12px; padding: 6px 10px; border-radius: 8px; outline: none; font-family: 'Noto Sans KR'; cursor: pointer; }
 .fetch-btn { font-family: 'Noto Sans KR'; font-size: 12px; padding: 7px 14px; border-radius: 8px; border: 1px solid var(--border2); background: var(--glow); color: var(--accent); cursor: pointer; font-weight: 700; transition: all 0.15s; }
 .fetch-btn:hover { border-color: var(--accent); }
 .fetch-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
+/* GRID */
 .section { padding: 0 2rem 3rem; position: relative; z-index: 1; }
 .sec-label { font-size: 11px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 1rem; display: flex; align-items: center; gap: 8px; }
 .sec-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
@@ -77,6 +75,10 @@ nav { position: sticky; top: 0; z-index: 100; background: rgba(8,8,16,0.93); bac
 .card:hover .play-ov { opacity: 1; }
 .play-circle { width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent2)); display: flex; align-items: center; justify-content: center; }
 .play-tri { width: 0; height: 0; border-style: solid; border-width: 9px 0 9px 17px; border-color: transparent transparent transparent #fff; margin-left: 3px; }
+.platform-badge { position: absolute; top: 10px; left: 10px; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 4px; }
+.badge-yt { background: var(--yt); color: #fff; }
+.badge-mlb { background: var(--mlb); color: #fff; }
+.topic-badge { position: absolute; bottom: 8px; left: 8px; font-size: 10px; padding: 2px 8px; border-radius: 20px; background: rgba(0,0,0,0.7); color: var(--muted); border: 1px solid var(--border); }
 .like-btn { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.65); border: none; border-radius: 20px; padding: 4px 10px; display: flex; align-items: center; gap: 4px; cursor: pointer; transition: all 0.15s; font-size: 12px; color: #fff; font-family: 'Noto Sans KR'; }
 .like-btn:hover, .like-btn.liked { background: rgba(244,114,182,0.85); }
 .bm-btn { position: absolute; top: 42px; right: 10px; background: rgba(0,0,0,0.65); border: none; border-radius: 20px; padding: 4px 10px; cursor: pointer; transition: all 0.15s; font-size: 13px; color: #fff; }
@@ -87,10 +89,9 @@ nav { position: sticky; top: 0; z-index: 100; background: rgba(8,8,16,0.93); bac
 .card-ch { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 5px; }
 .ch-dot { width: 18px; height: 18px; border-radius: 50%; background: var(--glow); border: 1px solid var(--border2); display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: var(--accent); }
 .card-date { font-size: 11px; color: var(--muted); }
-.card-tags { display: flex; gap: 4px; margin-top: 8px; }
-.card-tag { font-size: 10px; padding: 2px 8px; border-radius: 20px; background: var(--bg3); color: var(--muted); border: 1px solid var(--border); }
 .views-info { font-size: 11px; color: var(--muted); margin-top: 5px; }
 
+/* SKELETON */
 .skel { background: linear-gradient(90deg, var(--bg2) 25%, var(--bg3) 50%, var(--bg2) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 8px; }
 @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
 .skel-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
@@ -98,6 +99,7 @@ nav { position: sticky; top: 0; z-index: 100; background: rgba(8,8,16,0.93); bac
 .skel-body { padding: 12px 14px; }
 .skel-line { height: 12px; margin-bottom: 8px; border-radius: 4px; }
 
+/* MODAL */
 .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.88); z-index: 200; align-items: center; justify-content: center; padding: 1rem; backdrop-filter: blur(6px); }
 .modal-bg.open { display: flex; }
 .modal { background: var(--bg2); border: 1px solid var(--border2); border-radius: 16px; width: 100%; max-width: 880px; max-height: 90vh; overflow-y: auto; position: relative; }
@@ -117,13 +119,13 @@ nav { position: sticky; top: 0; z-index: 100; background: rgba(8,8,16,0.93); bac
 .modal-close { position: absolute; top: 12px; right: 12px; background: rgba(0,0,0,0.6); border: 1px solid var(--border); color: var(--muted); font-size: 18px; width: 34px; height: 34px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 10; }
 .modal-close:hover { color: var(--text); }
 
+/* COMMENTS */
 .comments-sec { border-top: 1px solid var(--border); padding-top: 1rem; }
 .comments-hd { font-size: 11px; font-weight: 700; margin-bottom: 1rem; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
 .cmt-row { display: flex; gap: 8px; margin-bottom: 1rem; }
 .cmt-input { flex: 1; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; color: var(--text); font-size: 13px; font-family: 'Noto Sans KR'; outline: none; resize: none; }
 .cmt-input:focus { border-color: var(--accent); }
 .cmt-name-input { background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; color: var(--text); font-size: 13px; font-family: 'Noto Sans KR'; outline: none; width: 120px; flex-shrink: 0; }
-.cmt-name-input:focus { border-color: var(--accent); }
 .cmt-submit { font-family: 'Noto Sans KR'; font-size: 12px; padding: 9px 14px; border-radius: 8px; border: none; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; font-weight: 700; cursor: pointer; align-self: flex-end; white-space: nowrap; }
 .cmt { display: flex; gap: 10px; margin-bottom: 12px; }
 .cmt-av { width: 28px; height: 28px; border-radius: 50%; background: var(--glow); border: 1px solid var(--border2); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: var(--accent); flex-shrink: 0; }
@@ -131,11 +133,9 @@ nav { position: sticky; top: 0; z-index: 100; background: rgba(8,8,16,0.93); bac
 .cmt-text { font-size: 13px; color: var(--muted); line-height: 1.5; }
 .cmt-time { font-size: 10px; color: var(--muted); opacity: 0.45; margin-top: 3px; }
 
+/* ADMIN */
 .admin-wrap { background: var(--bg2); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; margin: 0 2rem 2rem; position: relative; z-index: 1; }
 .admin-hd { font-family: 'Bebas Neue'; font-size: 20px; letter-spacing: 2px; color: var(--accent2); margin-bottom: 1rem; }
-.admin-login-row { display: flex; gap: 8px; align-items: center; }
-.admin-login-row input { background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; color: var(--text); font-size: 13px; font-family: 'Noto Sans KR'; outline: none; width: 180px; }
-.admin-login-row button { font-family: 'Noto Sans KR'; padding: 8px 16px; border-radius: 8px; border: none; background: var(--accent2); color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; }
 .admin-table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .admin-table th { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 400; }
 .admin-table td { padding: 10px; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: middle; }
@@ -146,8 +146,17 @@ nav { position: sticky; top: 0; z-index: 100; background: rgba(8,8,16,0.93); bac
 .kw-list { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
 .kw-chip { display: inline-flex; align-items: center; gap: 4px; background: var(--bg3); border: 1px solid var(--border2); border-radius: 20px; padding: 4px 10px; font-size: 12px; color: var(--accent); }
 .kw-chip button { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 14px; line-height: 1; padding: 0; }
-.kw-add-row { display: flex; gap: 8px; }
-.kw-add-row input { background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; color: var(--text); font-size: 13px; font-family: 'Noto Sans KR'; outline: none; max-width: 240px; }
+.kw-add-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.kw-add-row input { background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; color: var(--text); font-size: 13px; font-family: 'Noto Sans KR'; outline: none; max-width: 200px; }
+.topic-kw-section { background: var(--bg3); border-radius: 10px; padding: 1rem; margin-bottom: 1rem; }
+.topic-kw-title { font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+
+.setup-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.text-input { flex: 1; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 9px 14px; color: var(--text); font-size: 13px; font-family: 'Noto Sans KR'; outline: none; min-width: 200px; }
+.text-input:focus { border-color: var(--accent); }
+.setup-btn { font-family: 'Noto Sans KR'; font-size: 13px; padding: 9px 20px; border-radius: 8px; border: none; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.status-msg { margin-top: 8px; font-size: 12px; }
+.ok { color: #6ee7b7; } .err { color: #f87171; }
 
 .toast { position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(100px); background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; font-size: 13px; font-weight: 700; padding: 10px 22px; border-radius: 30px; z-index: 999; transition: transform 0.3s; pointer-events: none; font-family: 'Noto Sans KR'; }
 .toast.show { transform: translateX(-50%) translateY(0); }
@@ -156,39 +165,37 @@ nav { position: sticky; top: 0; z-index: 100; background: rgba(8,8,16,0.93); bac
 .page.active { display: block; }
 footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center; color: var(--muted); font-size: 12px; position: relative; z-index: 1; }
 
-@media (max-width: 600px) {
+@media (max-width: 640px) {
   nav { padding: 0 1rem; gap: 1rem; }
-  .hero, .toolbar, .section { padding-left: 1rem; padding-right: 1rem; }
-  .setup-box, .admin-wrap { margin-left: 1rem; margin-right: 1rem; }
+  .hero, .toolbar, .section, .topic-tabs { padding-left: 1rem; padding-right: 1rem; }
+  .admin-wrap { margin-left: 1rem; margin-right: 1rem; }
   .grid { grid-template-columns: 1fr; }
+  .logo { font-size: 20px; }
 }
 </style>
 </head>
 <body>
 
 <nav>
-  <div>
-    <span class="logo" onclick="showPage('home')">ANIMAI</span>
-    <span class="logo-sub"> 애니메이션 실사화 AI</span>
-  </div>
-  <div class="nav-links">
-    <div class="nav-link active" onclick="showPage('home',this)">홈</div>
-    <div class="nav-link" onclick="showPage('bookmarks',this)">북마크</div>
-    <div class="nav-link" onclick="showPage('admin',this)">관리자</div>
+  <span class="logo" onclick="showPlatform('youtube')">AIPULSE</span>
+  <div class="nav-platform-tabs">
+    <div class="nav-ptab active-yt" id="ptab-youtube" onclick="showPlatform('youtube',this)">▶ YouTube</div>
+    <div class="nav-ptab" id="ptab-mlb" onclick="showPlatform('mlb',this)">MLB파크</div>
+    <div class="nav-ptab" id="ptab-bookmarks" onclick="showPlatform('bookmarks',this)">북마크</div>
   </div>
   <div class="nav-right">
-    <div id="userArea" style="display:flex;align-items:center;gap:8px;">
-      <button class="btn-primary" id="loginBtn" onclick="googleLogin()" style="background:transparent;border:1px solid var(--border2);color:var(--muted);">구글 로그인</button>
+    <div id="userArea">
+      <button class="btn-primary" onclick="googleLogin()" style="background:transparent;border:1px solid var(--border2);color:var(--muted);">구글 로그인</button>
     </div>
-    <button class="btn-primary" onclick="fetchYT()">▶ 새 영상 가져오기</button>
+    <button class="btn-primary" id="fetchBtn" onclick="fetchYT()">▶ 수집</button>
   </div>
 </nav>
 
-<!-- HOME -->
-<div class="page active" id="page-home">
+<!-- YOUTUBE PAGE -->
+<div class="page active" id="page-youtube">
   <div class="hero">
-    <h1><span class="t1">ANIME</span><br><span class="t2">REAL</span></h1>
-    <p>YouTube에서 자동 수집한 애니메이션 실사화 AI 영상. 누구나 볼 수 있고 댓글·좋아요를 남길 수 있습니다.</p>
+    <h1><span class="t1">AI</span><br><span class="t2">PULSE</span></h1>
+    <p>YouTube · MLB파크에서 자동 수집한 AI 콘텐츠 큐레이션. 관심 주제만 골라서 보세요.</p>
     <div class="stats-row">
       <div class="stat"><div class="stat-num" id="totalCount">0</div><div class="stat-label">총 영상</div></div>
       <div class="stat"><div class="stat-num" id="likedCount">0</div><div class="stat-label">내 좋아요</div></div>
@@ -196,35 +203,48 @@ footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center;
     </div>
   </div>
 
+  <!-- 주제별 탭 -->
+  <div class="topic-tabs" id="topicTabs">
+    <button class="topic-tab on" data-topic="all" onclick="setTopic('all',this)">전체</button>
+    <button class="topic-tab" data-topic="anime" onclick="setTopic('anime',this)">애니 실사화</button>
+    <button class="topic-tab" data-topic="superman" onclick="setTopic('superman',this)">슈퍼맨</button>
+    <button class="topic-tab" data-topic="gourmet" onclick="setTopic('gourmet',this)">고독한미식가</button>
+    <button class="topic-tab" data-topic="sora" onclick="setTopic('sora',this)">Sora</button>
+    <button class="topic-tab" data-topic="runway" onclick="setTopic('runway',this)">Runway</button>
+    <button class="topic-tab" data-topic="kling" onclick="setTopic('kling',this)">Kling</button>
+  </div>
+
   <div class="toolbar">
     <div class="search-box">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
       <input type="text" id="searchInput" placeholder="영상 검색..." oninput="renderGrid()">
-    </div>
-    <div class="filter-group">
-      <button class="tag on" onclick="setFilter('all',this)">전체</button>
-      <button class="tag" onclick="setFilter('anime',this)">애니 실사화</button>
-      <button class="tag" onclick="setFilter('cosplay',this)">코스프레 AI</button>
-      <button class="tag" onclick="setFilter('sora',this)">Sora</button>
-      <button class="tag" onclick="setFilter('runway',this)">Runway</button>
-      <button class="tag" onclick="setFilter('kling',this)">Kling</button>
     </div>
     <select class="sort-sel" id="sortSel" onchange="renderGrid()">
       <option value="newest">최신순</option>
       <option value="views">조회수순</option>
       <option value="likes">좋아요순</option>
     </select>
-    <button class="fetch-btn" id="fetchBtn" onclick="fetchYT()">⟳ YouTube 검색</button>
   </div>
 
   <div class="section">
-    <div class="sec-label">영상 목록</div>
+    <div class="sec-label" id="secLabel">전체 영상</div>
     <div class="grid" id="grid"></div>
-    <div class="empty-st" id="emptyState" style="display:none;">아직 수집된 영상이 없습니다. 관리자가 영상을 추가하면 여기에 표시됩니다.</div>
+    <div class="empty-st" id="emptyState">아직 수집된 영상이 없습니다.</div>
   </div>
 </div>
 
-<!-- BOOKMARKS -->
+<!-- MLB파크 PAGE (준비중) -->
+<div class="page" id="page-mlb">
+  <div class="hero">
+    <h1><span class="t1">MLB</span><br><span class="t2">파크</span></h1>
+    <p>MLB파크에서 수집한 AI 관련 게시물 모음. 곧 업데이트됩니다.</p>
+  </div>
+  <div class="section">
+    <div class="empty-st">MLB파크 크롤링 기능을 준비 중입니다. 곧 업데이트됩니다! ⚡</div>
+  </div>
+</div>
+
+<!-- BOOKMARKS PAGE -->
 <div class="page" id="page-bookmarks">
   <div class="hero">
     <h1><span class="t1">MY</span><br><span class="t2">SAVES</span></h1>
@@ -232,40 +252,45 @@ footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center;
   </div>
   <div class="section">
     <div class="grid" id="bmGrid"></div>
-    <div class="empty-st" id="bmEmpty" style="display:none;">북마크한 영상이 없습니다.</div>
+    <div class="empty-st" id="bmEmpty">북마크한 콘텐츠가 없습니다.</div>
   </div>
 </div>
 
-<!-- ADMIN -->
+<!-- ADMIN PAGE -->
 <div class="page" id="page-admin">
   <div class="hero">
     <h1><span class="t1">ADMIN</span><br><span class="t2">PANEL</span></h1>
-    <p>영상 관리 및 키워드 설정. Supabase 계정으로 로그인하세요.</p>
+    <p>콘텐츠 관리 및 키워드 설정. Supabase 계정으로 로그인하세요.</p>
   </div>
   <div class="admin-wrap">
     <div id="adminLoginArea">
       <div class="admin-hd">관리자 로그인</div>
-      <div class="admin-login-row" style="flex-direction:column;align-items:flex-start;gap:8px;max-width:320px;">
-        <input type="email" id="adminEmail" placeholder="이메일" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;font-family:'Noto Sans KR';outline:none;width:100%;" onkeydown="if(event.key==='Enter')adminLogin()">
-        <input type="password" id="adminPw" placeholder="비밀번호" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;font-family:'Noto Sans KR';outline:none;width:100%;" onkeydown="if(event.key==='Enter')adminLogin()">
-        <button onclick="adminLogin()" style="font-family:'Noto Sans KR';padding:8px 24px;border-radius:8px;border:none;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:13px;font-weight:700;cursor:pointer;">로그인</button>
+      <div style="display:flex;flex-direction:column;gap:8px;max-width:320px;">
+        <input type="email" id="adminEmail" placeholder="이메일" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;font-family:'Noto Sans KR';outline:none;" onkeydown="if(event.key==='Enter')adminLogin()">
+        <input type="password" id="adminPw" placeholder="비밀번호" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;font-family:'Noto Sans KR';outline:none;" onkeydown="if(event.key==='Enter')adminLogin()">
+        <button onclick="adminLogin()" style="font-family:'Noto Sans KR';padding:8px 24px;border-radius:8px;border:none;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:13px;font-weight:700;cursor:pointer;align-self:flex-start;">로그인</button>
         <div id="loginError" style="font-size:12px;color:#f87171;display:none;"></div>
       </div>
     </div>
     <div id="adminContent" style="display:none;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;">
-        <div style="font-size:13px;color:var(--muted);">✓ 관리자로 로그인됨 — <span id="adminEmailLabel" style="color:var(--accent);"></span></div>
+        <div style="font-size:13px;color:var(--muted);">✓ 관리자 로그인됨 — <span id="adminEmailLabel" style="color:var(--accent);"></span></div>
         <button onclick="adminLogout()" style="font-family:'Noto Sans KR';font-size:12px;padding:6px 14px;border-radius:6px;border:1px solid var(--border2);background:transparent;color:var(--muted);cursor:pointer;">로그아웃</button>
       </div>
+
       <div class="admin-hd">YouTube API 키</div>
       <div style="margin-bottom:1.5rem;">
-        <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">영상 수집에 사용할 YouTube Data API v3 키를 입력하세요. 이 기기에만 저장됩니다.</div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">YouTube Data API v3 키를 입력하세요.</div>
         <div class="setup-row">
-          <input class="text-input" id="apiKeyInput" type="password" placeholder="AIzaSy... YouTube API 키 입력">
+          <input class="text-input" id="apiKeyInput" type="password" placeholder="AIzaSy... YouTube API 키">
           <button class="setup-btn" onclick="saveYTKey()">저장 및 검색</button>
         </div>
         <div class="status-msg" id="apiStatus"></div>
       </div>
+
+      <div class="admin-hd">주제별 키워드 관리</div>
+      <div style="margin-bottom:1.5rem;" id="topicKwManager"></div>
+
       <div class="admin-hd">비밀번호 변경</div>
       <div style="margin-bottom:1.5rem;max-width:320px;display:flex;flex-direction:column;gap:8px;">
         <input type="password" id="pwCurrent" placeholder="현재 비밀번호" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;font-family:'Noto Sans KR';outline:none;">
@@ -274,22 +299,15 @@ footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center;
         <button onclick="changePassword()" style="font-family:'Noto Sans KR';font-size:12px;padding:8px 18px;border-radius:8px;border:none;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-weight:700;cursor:pointer;align-self:flex-start;">비밀번호 변경</button>
         <div id="pwStatus" style="font-size:12px;display:none;"></div>
       </div>
-      <div class="admin-hd">검색 키워드</div>
-      <div style="margin-bottom:1.5rem;">
-        <div class="kw-list" id="kwList"></div>
-        <div class="kw-add-row">
-          <input id="newKw" placeholder="키워드 추가...">
-          <button class="setup-btn" style="padding:8px 14px;font-size:12px;" onclick="addKw()">추가</button>
-        </div>
-      </div>
+
       <div class="admin-hd">영상 관리</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1rem;">
-        <button class="tag on" onclick="setAdmFilter('all',this)">전체</button>
-        <button class="tag" onclick="setAdmFilter('hidden',this)">숨김</button>
+        <button class="topic-tab on" onclick="setAdmFilter('all',this)">전체</button>
+        <button class="topic-tab" onclick="setAdmFilter('hidden',this)">숨김</button>
       </div>
       <div style="overflow-x:auto;">
         <table class="admin-table">
-          <thead><tr><th>제목</th><th>채널</th><th>조회수</th><th>좋아요</th><th>상태</th><th>액션</th></tr></thead>
+          <thead><tr><th>제목</th><th>주제</th><th>조회수</th><th>좋아요</th><th>상태</th><th>액션</th></tr></thead>
           <tbody id="admTbody"></tbody>
         </table>
       </div>
@@ -297,7 +315,7 @@ footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center;
   </div>
 </div>
 
-<!-- MODAL -->
+<!-- VIDEO MODAL -->
 <div class="modal-bg" id="videoModal" onclick="closeModalBg(event)">
   <div class="modal">
     <button class="modal-close" onclick="closeModal()">✕</button>
@@ -307,7 +325,7 @@ footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center;
       <div class="modal-meta">
         <span class="modal-ch" id="modalCh"></span>
         <span class="modal-date" id="modalDate"></span>
-        <a class="modal-link" id="modalLink" href="#" target="_blank">YouTube에서 보기 ↗</a>
+        <a class="modal-link" id="modalLink" href="#" target="_blank">원본 보기 ↗</a>
       </div>
       <div class="modal-actions">
         <button class="modal-btn" id="mLikeBtn" onclick="mLike()">♥ 좋아요 <span id="mLikeCnt">0</span></button>
@@ -330,46 +348,51 @@ footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center;
 <div class="toast" id="toast"></div>
 
 <footer>
-  <div style="font-family:'Bebas Neue';font-size:20px;letter-spacing:3px;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px;">ANIMAI</div>
-  YouTube 기반 애니메이션 실사화 AI 영상 큐레이션
+  <div style="font-family:'Bebas Neue';font-size:22px;letter-spacing:4px;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px;">AIPULSE</div>
+  AI 콘텐츠 큐레이션 허브 · YouTube · MLB파크
+  <button onclick="showPlatform('admin')" style="background:transparent;border:none;color:transparent;cursor:default;font-size:12px;padding:4px 8px;margin-left:4px;user-select:none;" onmouseenter="this.style.cursor='pointer'" onmouseleave="this.style.cursor='default'">·</button>
 </footer>
 
 <script>
-const SUPABASE_URL = 'https://unpztnvewqqhnwnyfopa.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVucHp0bnZld3FxaG53bnlmb3BhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3MTcxNTgsImV4cCI6MjA4OTI5MzE1OH0.g5iTLHWqaEIxGO9-PwRqmToy_eZz2gy4ra7eWODZluQ';
+const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
 
 const { createClient } = supabase;
 const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-const DEFAULT_KW = ['애니메이션 실사화 AI','anime live action AI','anime to real life AI','AI anime realistic','Sora anime live action','Runway anime real','Kling anime realistic'];
-const TAG_LABEL = {anime:'애니 실사화',cosplay:'코스프레 AI',sora:'Sora',runway:'Runway',kling:'Kling'};
+// 주제별 키워드 정의
+const TOPICS = {
+  all:      { label: '전체',       keywords: [] },
+  anime:    { label: '애니 실사화', keywords: ['애니메이션 실사화 AI','anime live action AI','anime to real life AI','AI anime realistic'] },
+  superman: { label: '슈퍼맨',     keywords: ['슈퍼맨 AI 영상','superman AI video','AI superman realistic'] },
+  gourmet:  { label: '고독한미식가', keywords: ['고독한미식가 AI','gourmet solitude AI video'] },
+  sora:     { label: 'Sora',       keywords: ['Sora AI video','OpenAI Sora','Sora anime'] },
+  runway:   { label: 'Runway',     keywords: ['Runway Gen AI video','Runway ML video generation'] },
+  kling:    { label: 'Kling',      keywords: ['Kling AI video','Kling anime realistic'] },
+};
 
 let videos = [];
-let curFilter = 'all';
+let curTopic = 'all';
+let curPlatform = 'youtube';
 let curModalId = null;
-let bookmarks = []; // 서버에서 로드
-let likedYtIds = []; // 서버에서 로드
-let keywords = JSON.parse(localStorage.getItem('animai_kw') || 'null') || [...DEFAULT_KW];
-let ytApiKey = localStorage.getItem('animai_ytkey') || '';
+let bookmarks = [];
+let likedYtIds = [];
+let ytApiKey = localStorage.getItem('aipulse_ytkey') || '';
 let admLoggedIn = false;
 let admFilter = 'all';
 let currentUser = null;
 
-// ── 초기 로드 ──
+// ── 초기화 ──
 async function init() {
   await loadVideos();
   const { data: { session } } = await db.auth.getSession();
-  if (session?.user) await onUserLogin(session.user);
-  // 관리자 세션 복원
-  if (session?.user) showAdminContent(session.user.email);
-
-  // 로그인 상태 변화 감지
+  if (session?.user) {
+    await onUserLogin(session.user);
+    showAdminContent(session.user.email);
+  }
   db.auth.onAuthStateChange(async (event, session) => {
-    if (event === 'SIGNED_IN' && session?.user) {
-      await onUserLogin(session.user);
-    } else if (event === 'SIGNED_OUT') {
-      onUserLogout();
-    }
+    if (event === 'SIGNED_IN' && session?.user) await onUserLogin(session.user);
+    else if (event === 'SIGNED_OUT') onUserLogout();
   });
 }
 
@@ -382,12 +405,8 @@ async function onUserLogin(user) {
 }
 
 function onUserLogout() {
-  currentUser = null;
-  bookmarks = [];
-  likedYtIds = [];
-  updateUserUI(null);
-  renderGrid();
-  updateStats();
+  currentUser = null; bookmarks = []; likedYtIds = [];
+  updateUserUI(null); renderGrid(); updateStats();
 }
 
 function updateUserUI(user) {
@@ -395,151 +414,161 @@ function updateUserUI(user) {
   if (user) {
     const name = user.user_metadata?.full_name || user.email?.split('@')[0] || '사용자';
     const avatar = user.user_metadata?.avatar_url;
-    area.innerHTML = `
-      <div style="display:flex;align-items:center;gap:8px;">
-        ${avatar ? `<img src="${avatar}" style="width:28px;height:28px;border-radius:50%;border:1px solid var(--border2);">` : ''}
-        <span style="font-size:12px;color:var(--muted);">${name}</span>
-        <button onclick="userLogout()" style="font-family:'Noto Sans KR';font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid var(--border2);background:transparent;color:var(--muted);cursor:pointer;">로그아웃</button>
-      </div>`;
+    area.innerHTML = `<div style="display:flex;align-items:center;gap:8px;">
+      ${avatar?`<img src="${avatar}" style="width:28px;height:28px;border-radius:50%;border:1px solid var(--border2);">`:''}
+      <span style="font-size:12px;color:var(--muted);">${name}</span>
+      <button onclick="userLogout()" style="font-family:'Noto Sans KR';font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid var(--border2);background:transparent;color:var(--muted);cursor:pointer;">로그아웃</button>
+    </div>`;
   } else {
     area.innerHTML = `<button class="btn-primary" onclick="googleLogin()" style="background:transparent;border:1px solid var(--border2);color:var(--muted);">구글 로그인</button>`;
   }
 }
 
 async function googleLogin() {
-  const { error } = await db.auth.signInWithOAuth({
-    provider: 'google',
-    options: { redirectTo: window.location.href }
-  });
+  const { error } = await db.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.href } });
   if (error) toast('로그인 오류: ' + error.message);
 }
+async function userLogout() { await db.auth.signOut(); toast('로그아웃됐습니다'); }
 
-async function userLogout() {
-  await db.auth.signOut();
-  toast('로그아웃됐습니다');
-}
-
-// ── 유저 데이터 로드 (북마크, 좋아요) ──
 async function loadUserData() {
   if (!currentUser) return;
   const [bmRes, likeRes] = await Promise.all([
     db.from('bookmarks').select('yt_id').eq('user_id', currentUser.id),
     db.from('likes').select('yt_id').eq('user_id', currentUser.id)
   ]);
-  bookmarks = (bmRes.data || []).map(b => b.yt_id);
-  likedYtIds = (likeRes.data || []).map(l => l.yt_id);
+  bookmarks = (bmRes.data||[]).map(b=>b.yt_id);
+  likedYtIds = (likeRes.data||[]).map(l=>l.yt_id);
 }
 
+// ── 플랫폼 전환 ──
+function showPlatform(name) {
+  curPlatform = name;
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.querySelectorAll('.nav-ptab').forEach(t=>{ t.className='nav-ptab'; });
+  const tab = document.getElementById('ptab-' + name);
+  if (tab) tab.classList.add(name==='youtube'?'active-yt':name==='mlb'?'active-mlb':'active-bm');
+  if (name==='bookmarks') renderBm();
+  if (name==='admin') renderAdmTable();
+  document.getElementById('fetchBtn').style.display = name==='youtube' ? '' : 'none';
+}
+
+// ── 주제 탭 ──
+function setTopic(topic, el) {
+  curTopic = topic;
+  document.querySelectorAll('.topic-tab').forEach(t=>t.classList.remove('on'));
+  if (el) el.classList.add('on');
+  document.getElementById('secLabel').textContent = TOPICS[topic]?.label || '전체';
+  renderGrid();
+}
+
+// ── 영상 로드 ──
 async function loadVideos() {
   showSkels();
-  const { data, error } = await db.from('videos').select('*').eq('status','approved').order('created_at', { ascending: false });
-  if (error) { toast('DB 로드 오류: ' + error.message); clearSkels(); return; }
-  videos = data || [];
-  renderGrid();
-  updateStats();
+  const { data, error } = await db.from('videos').select('*').eq('status','approved').order('created_at',{ascending:false});
+  if (error) { toast('DB 로드 오류: '+error.message); clearSkels(); return; }
+  videos = data||[];
+  renderGrid(); updateStats();
 }
 
 // ── YouTube 수집 ──
 function saveYTKey() {
   const k = document.getElementById('apiKeyInput').value.trim();
   if (!k) { toast('API 키를 입력해주세요'); return; }
-  ytApiKey = k;
-  localStorage.setItem('animai_ytkey', k);
-  document.getElementById('apiStatus').textContent = '✓ 저장됨. 영상을 검색합니다...';
-  document.getElementById('apiStatus').className = 'status-msg ok';
+  ytApiKey = k; localStorage.setItem('aipulse_ytkey', k);
+  document.getElementById('apiStatus').textContent='✓ 저장됨. 영상을 검색합니다...';
+  document.getElementById('apiStatus').className='status-msg ok';
   fetchYT();
 }
 
 async function fetchYT() {
-  if (!ytApiKey) { toast('YouTube API 키를 먼저 입력해주세요'); return; }
+  if (!ytApiKey) { toast('관리자 페이지에서 YouTube API 키를 입력해주세요'); return; }
   const btn = document.getElementById('fetchBtn');
-  btn.disabled = true; btn.textContent = '⏳ 검색 중...';
+  btn.disabled=true; btn.textContent='⏳ 수집 중...';
   showSkels();
-  const kw = keywords[Math.floor(Math.random() * keywords.length)];
+
+  // 현재 주제의 키워드 사용, 전체면 랜덤
+  let kwPool = curTopic==='all'
+    ? Object.values(TOPICS).flatMap(t=>t.keywords)
+    : TOPICS[curTopic]?.keywords || [];
+  if (!kwPool.length) kwPool = Object.values(TOPICS).flatMap(t=>t.keywords);
+  const kw = kwPool[Math.floor(Math.random()*kwPool.length)];
+
   try {
-    const r = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(kw)}&type=video&maxResults=24&order=date&key=${ytApiKey}`);
+    const r = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(kw)}&type=video&maxResults=20&order=date&key=${ytApiKey}`);
     const d = await r.json();
-    if (d.error) { toast('YouTube API 오류: ' + d.error.message); clearSkels(); btn.disabled=false; btn.textContent='⟳ YouTube 검색'; return; }
-    const ids = d.items.map(i => i.id.videoId).join(',');
+    if (d.error) { toast('YouTube API 오류: '+d.error.message); clearSkels(); btn.disabled=false; btn.textContent='▶ 수집'; return; }
+    const ids = d.items.map(i=>i.id.videoId).join(',');
     const sr = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${ids}&key=${ytApiKey}`);
     const sd = await sr.json();
-    const sm = {};
-    (sd.items||[]).forEach(i => sm[i.id] = i.statistics);
+    const sm = {}; (sd.items||[]).forEach(i=>sm[i.id]=i.statistics);
     const { data: existing } = await db.from('videos').select('yt_id');
-    const existSet = new Set((existing||[]).map(v => v.yt_id));
+    const existSet = new Set((existing||[]).map(v=>v.yt_id));
     const toInsert = [];
     d.items.forEach(item => {
-      const vid = item.id.videoId;
-      if (existSet.has(vid)) return;
-      const sn = item.snippet;
-      const st = sm[vid] || {};
-      toInsert.push({ yt_id: vid, title: sn.title, channel: sn.channelTitle, published_at: (sn.publishedAt||'').slice(0,10), thumb: sn.thumbnails?.medium?.url || `https://img.youtube.com/vi/${vid}/mqdefault.jpg`, url: `https://www.youtube.com/watch?v=${vid}`, views: parseInt(st.viewCount||0), tag: guessTag(sn.title), status: 'approved' });
+      const vid = item.id.videoId; if(existSet.has(vid)) return;
+      const sn = item.snippet; const st = sm[vid]||{};
+      toInsert.push({ yt_id:vid, title:sn.title, channel:sn.channelTitle, published_at:(sn.publishedAt||'').slice(0,10), thumb:sn.thumbnails?.medium?.url||`https://img.youtube.com/vi/${vid}/mqdefault.jpg`, url:`https://www.youtube.com/watch?v=${vid}`, views:parseInt(st.viewCount||0), tag:curTopic==='all'?guessTopic(sn.title):curTopic, status:'approved' });
     });
-    if (toInsert.length > 0) {
+    if (toInsert.length>0) {
       const { error } = await db.from('videos').insert(toInsert);
-      if (error) { toast('저장 오류: ' + error.message); }
-      else { toast(`"${kw}" — ${toInsert.length}개 새 영상 수집됨 ✓`); await loadVideos(); }
-    } else { toast('새로운 영상이 없습니다. 다시 시도해보세요.'); await loadVideos(); }
-  } catch(e) { toast('네트워크 오류가 발생했습니다'); clearSkels(); }
-  btn.disabled = false; btn.textContent = '⟳ YouTube 검색';
+      if (error) toast('저장 오류: '+error.message);
+      else { toast(`"${kw}" — ${toInsert.length}개 추가됨 ✓`); await loadVideos(); }
+    } else { toast('새 영상이 없습니다.'); await loadVideos(); }
+  } catch(e) { toast('네트워크 오류'); clearSkels(); }
+  btn.disabled=false; btn.textContent='▶ 수집';
 }
 
-function guessTag(t) {
-  t = t.toLowerCase();
+function guessTopic(title) {
+  const t = title.toLowerCase();
   if (t.includes('sora')) return 'sora';
   if (t.includes('runway')) return 'runway';
   if (t.includes('kling')) return 'kling';
-  if (t.includes('cosplay')||t.includes('코스프레')) return 'cosplay';
+  if (t.includes('superman')||t.includes('슈퍼맨')) return 'superman';
+  if (t.includes('gourmet')||t.includes('미식가')) return 'gourmet';
   return 'anime';
 }
 
 function showSkels() {
-  document.getElementById('emptyState').style.display = 'none';
-  document.getElementById('grid').innerHTML = Array(8).fill(0).map(()=>`<div class="skel-card"><div class="skel-thumb skel"></div><div class="skel-body"><div class="skel-line skel" style="width:88%"></div><div class="skel-line skel" style="width:55%"></div></div></div>`).join('');
+  document.getElementById('emptyState').style.display='none';
+  document.getElementById('grid').innerHTML=Array(8).fill(0).map(()=>`<div class="skel-card"><div class="skel-thumb skel"></div><div class="skel-body"><div class="skel-line skel" style="width:88%"></div><div class="skel-line skel" style="width:55%"></div></div></div>`).join('');
 }
-function clearSkels() { document.getElementById('grid').innerHTML = ''; document.getElementById('emptyState').style.display = 'block'; }
+function clearSkels() { document.getElementById('grid').innerHTML=''; document.getElementById('emptyState').style.display='block'; }
 
-function setFilter(f, el) {
-  curFilter = f;
-  document.querySelectorAll('.filter-group .tag').forEach(t => t.classList.remove('on'));
-  el.classList.add('on');
-  renderGrid();
-}
-
+// ── 렌더링 ──
 function renderGrid() {
   const q = document.getElementById('searchInput').value.toLowerCase();
   const sort = document.getElementById('sortSel').value;
   let list = videos.filter(v => {
-    return (curFilter === 'all' || v.tag === curFilter) && (!q || v.title.toLowerCase().includes(q) || (v.channel||'').toLowerCase().includes(q));
+    const matchTopic = curTopic==='all' || v.tag===curTopic;
+    const matchQ = !q || v.title.toLowerCase().includes(q) || (v.channel||'').toLowerCase().includes(q);
+    return matchTopic && matchQ;
   });
-  if (sort === 'views') list.sort((a,b) => b.views - a.views);
-  else if (sort === 'likes') list.sort((a,b) => (b.like_count||0) - (a.like_count||0));
-  else list.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+  if (sort==='views') list.sort((a,b)=>b.views-a.views);
+  else if (sort==='likes') list.sort((a,b)=>(b.like_count||0)-(a.like_count||0));
+  else list.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
   const grid = document.getElementById('grid');
   const empty = document.getElementById('emptyState');
-  if (!list.length) { grid.innerHTML = ''; empty.style.display = 'block'; empty.textContent = videos.length === 0 ? '아직 수집된 영상이 없습니다.' : '검색 결과가 없습니다.'; return; }
-  empty.style.display = 'none';
-  grid.innerHTML = list.map(v => buildCard(v)).join('');
+  if (!list.length) { grid.innerHTML=''; empty.style.display='block'; empty.textContent=videos.length===0?'아직 수집된 영상이 없습니다.':'검색 결과가 없습니다.'; return; }
+  empty.style.display='none';
+  grid.innerHTML=list.map(v=>buildCard(v)).join('');
 }
 
-function fmtV(n) {
-  if (!n) return '';
-  if (n >= 10000) return Math.floor(n/10000)+'만';
-  if (n >= 1000) return Math.floor(n/1000)+'k';
-  return String(n);
-}
+function fmtV(n) { if(!n)return''; if(n>=10000)return Math.floor(n/10000)+'만'; if(n>=1000)return Math.floor(n/1000)+'k'; return String(n); }
 
 function buildCard(v) {
   const liked = likedYtIds.includes(v.yt_id);
   const saved = bookmarks.includes(v.yt_id);
   const vstr = fmtV(v.views);
-  const loginTip = currentUser ? '' : ' title="로그인 후 이용 가능"';
+  const topicLabel = TOPICS[v.tag]?.label || v.tag || '';
   return `<div class="card" id="card-${v.yt_id}">
     <div class="thumb">
       <img src="${v.thumb}" alt="" loading="lazy">
       <div class="play-ov" onclick="openModal('${v.yt_id}')"><div class="play-circle"><div class="play-tri"></div></div></div>
-      <button class="like-btn${liked?' liked':''}" onclick="toggleLike(event,'${v.yt_id}')"${loginTip}>♥ ${v.like_count||0}</button>
-      <button class="bm-btn${saved?' saved':''}" onclick="toggleBm(event,'${v.yt_id}')"${loginTip}>☆</button>
+      <span class="platform-badge badge-yt">YT</span>
+      <span class="topic-badge">${topicLabel}</span>
+      <button class="like-btn${liked?' liked':''}" onclick="toggleLike(event,'${v.yt_id}')">♥ ${v.like_count||0}</button>
+      <button class="bm-btn${saved?' saved':''}" onclick="toggleBm(event,'${v.yt_id}')">☆</button>
     </div>
     <div class="card-body" onclick="openModal('${v.yt_id}')" style="cursor:pointer;">
       <div class="card-title">${v.title}</div>
@@ -547,241 +576,232 @@ function buildCard(v) {
         <span class="card-ch"><span class="ch-dot">${(v.channel||'?')[0]}</span>${v.channel||''}</span>
         <span class="card-date">${v.published_at||''}</span>
       </div>
-      <div class="card-tags"><span class="card-tag">${TAG_LABEL[v.tag]||v.tag||''}</span></div>
       ${vstr?`<div class="views-info">▶ ${vstr} 조회</div>`:''}
     </div>
   </div>`;
 }
 
 function updateStats() {
-  document.getElementById('totalCount').textContent = videos.length;
-  document.getElementById('likedCount').textContent = likedYtIds.length;
-  document.getElementById('bmCount').textContent = bookmarks.length;
+  document.getElementById('totalCount').textContent=videos.length;
+  document.getElementById('likedCount').textContent=likedYtIds.length;
+  document.getElementById('bmCount').textContent=bookmarks.length;
 }
 
-// ── 좋아요 (계정당 1회) ──
+// ── 좋아요 ──
 async function toggleLike(e, ytId) {
   e.stopPropagation();
   if (!currentUser) { toast('로그인 후 이용할 수 있어요'); return; }
   const v = videos.find(v=>v.yt_id===ytId);
   if (likedYtIds.includes(ytId)) {
-    await db.from('likes').delete().eq('yt_id', ytId).eq('user_id', currentUser.id);
-    likedYtIds = likedYtIds.filter(x => x !== ytId);
-    if(v) v.like_count = Math.max(0,(v.like_count||1)-1);
+    await db.from('likes').delete().eq('yt_id',ytId).eq('user_id',currentUser.id);
+    likedYtIds=likedYtIds.filter(x=>x!==ytId);
+    if(v) v.like_count=Math.max(0,(v.like_count||1)-1);
   } else {
-    await db.from('likes').insert({ yt_id: ytId, user_id: currentUser.id });
+    await db.from('likes').insert({yt_id:ytId,user_id:currentUser.id});
     likedYtIds.push(ytId);
-    if(v) v.like_count = (v.like_count||0)+1;
+    if(v) v.like_count=(v.like_count||0)+1;
   }
   renderGrid(); updateStats();
 }
 
-// ── 북마크 (서버 저장) ──
+// ── 북마크 ──
 async function toggleBm(e, ytId) {
   e.stopPropagation();
   if (!currentUser) { toast('로그인 후 이용할 수 있어요'); return; }
   if (bookmarks.includes(ytId)) {
-    await db.from('bookmarks').delete().eq('yt_id', ytId).eq('user_id', currentUser.id);
-    bookmarks = bookmarks.filter(x => x !== ytId);
-    toast('북마크 해제됨');
+    await db.from('bookmarks').delete().eq('yt_id',ytId).eq('user_id',currentUser.id);
+    bookmarks=bookmarks.filter(x=>x!==ytId); toast('북마크 해제됨');
   } else {
-    await db.from('bookmarks').insert({ yt_id: ytId, user_id: currentUser.id });
-    bookmarks.push(ytId);
-    toast('북마크에 저장됨 ★');
+    await db.from('bookmarks').insert({yt_id:ytId,user_id:currentUser.id});
+    bookmarks.push(ytId); toast('북마크에 저장됨 ★');
   }
   renderGrid(); updateStats();
 }
 
 async function renderBm() {
-  const g = document.getElementById('bmGrid');
-  const empty = document.getElementById('bmEmpty');
-  if (!currentUser) {
-    g.innerHTML = '';
-    empty.style.display = 'block';
-    empty.textContent = '로그인하면 북마크를 저장하고 볼 수 있어요.';
-    return;
-  }
-  const saved = videos.filter(v => bookmarks.includes(v.yt_id));
-  if (!saved.length) { g.innerHTML=''; empty.style.display='block'; empty.textContent='북마크한 영상이 없습니다.'; return; }
+  const g=document.getElementById('bmGrid');
+  const empty=document.getElementById('bmEmpty');
+  if (!currentUser) { g.innerHTML=''; empty.style.display='block'; empty.textContent='로그인하면 북마크를 저장하고 볼 수 있어요.'; return; }
+  const saved=videos.filter(v=>bookmarks.includes(v.yt_id));
+  if (!saved.length) { g.innerHTML=''; empty.style.display='block'; empty.textContent='북마크한 콘텐츠가 없습니다.'; return; }
   empty.style.display='none';
-  g.innerHTML = saved.map(v => buildCard(v)).join('');
+  g.innerHTML=saved.map(v=>buildCard(v)).join('');
 }
 
-// ── 시청 기록 저장 ──
+// ── 시청기록 ──
 async function recordWatch(ytId) {
   if (!currentUser) return;
-  await db.from('watch_history').upsert({ yt_id: ytId, user_id: currentUser.id, watched_at: new Date().toISOString() }, { onConflict: 'user_id,yt_id' });
+  await db.from('watch_history').upsert({yt_id:ytId,user_id:currentUser.id,watched_at:new Date().toISOString()},{onConflict:'user_id,yt_id'});
 }
 
 // ── 모달 ──
 async function openModal(ytId) {
-  const v = videos.find(v => v.yt_id === ytId); if(!v) return;
-  curModalId = ytId;
-  document.getElementById('modalVideo').innerHTML = `<iframe src="https://www.youtube.com/embed/${ytId}?autoplay=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
-  document.getElementById('modalTitle').textContent = v.title;
-  document.getElementById('modalCh').textContent = v.channel||'';
-  document.getElementById('modalDate').textContent = v.published_at||'';
-  document.getElementById('modalLink').href = v.url;
-  document.getElementById('mLikeCnt').textContent = v.like_count||0;
-  document.getElementById('mLikeBtn').classList.toggle('active', likedYtIds.includes(ytId));
-  const bb = document.getElementById('mBmBtn');
-  bb.classList.toggle('active', bookmarks.includes(ytId));
-  bb.textContent = bookmarks.includes(ytId) ? '★ 북마크됨' : '☆ 북마크';
+  const v=videos.find(v=>v.yt_id===ytId); if(!v) return;
+  curModalId=ytId;
+  document.getElementById('modalVideo').innerHTML=`<iframe src="https://www.youtube.com/embed/${ytId}?autoplay=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+  document.getElementById('modalTitle').textContent=v.title;
+  document.getElementById('modalCh').textContent=v.channel||'';
+  document.getElementById('modalDate').textContent=v.published_at||'';
+  document.getElementById('modalLink').href=v.url;
+  document.getElementById('mLikeCnt').textContent=v.like_count||0;
+  document.getElementById('mLikeBtn').classList.toggle('active',likedYtIds.includes(ytId));
+  const bb=document.getElementById('mBmBtn');
+  bb.classList.toggle('active',bookmarks.includes(ytId));
+  bb.textContent=bookmarks.includes(ytId)?'★ 북마크됨':'☆ 북마크';
   document.getElementById('videoModal').classList.add('open');
-  await Promise.all([loadCmts(ytId), recordWatch(ytId)]);
+  await Promise.all([loadCmts(ytId),recordWatch(ytId)]);
 }
 
 function closeModalBg(e) { if(e.target===document.getElementById('videoModal')) closeModal(); }
 function closeModal() { document.getElementById('videoModal').classList.remove('open'); document.getElementById('modalVideo').innerHTML=''; }
 
 async function mLike() {
-  await toggleLike({ stopPropagation: ()=>{} }, curModalId);
-  const v = videos.find(v=>v.yt_id===curModalId);
-  document.getElementById('mLikeCnt').textContent = v?.like_count||0;
-  document.getElementById('mLikeBtn').classList.toggle('active', likedYtIds.includes(curModalId));
+  await toggleLike({stopPropagation:()=>{}},curModalId);
+  const v=videos.find(v=>v.yt_id===curModalId);
+  document.getElementById('mLikeCnt').textContent=v?.like_count||0;
+  document.getElementById('mLikeBtn').classList.toggle('active',likedYtIds.includes(curModalId));
 }
 
 async function mBm() {
-  await toggleBm({ stopPropagation: ()=>{} }, curModalId);
-  const bb = document.getElementById('mBmBtn');
-  bb.classList.toggle('active', bookmarks.includes(curModalId));
-  bb.textContent = bookmarks.includes(curModalId) ? '★ 북마크됨' : '☆ 북마크';
+  await toggleBm({stopPropagation:()=>{}},curModalId);
+  const bb=document.getElementById('mBmBtn');
+  bb.classList.toggle('active',bookmarks.includes(curModalId));
+  bb.textContent=bookmarks.includes(curModalId)?'★ 북마크됨':'☆ 북마크';
 }
 
 function copyLink() {
-  const v = videos.find(v=>v.yt_id===curModalId); if(!v) return;
+  const v=videos.find(v=>v.yt_id===curModalId); if(!v) return;
   navigator.clipboard.writeText(v.url).then(()=>toast('링크 복사됨!'));
 }
 
 // ── 댓글 ──
 async function loadCmts(ytId) {
-  const { data } = await db.from('comments').select('*').eq('yt_id', ytId).order('created_at', { ascending: true });
-  const cmts = data || [];
-  document.getElementById('cmtCount').textContent = cmts.length;
-  document.getElementById('cmtList').innerHTML = cmts.map(c => {
-    const isMine = currentUser && c.user_id === currentUser.id;
-    return `<div class="cmt">
-      <div class="cmt-av">${(c.name||'익')[0]}</div>
-      <div style="flex:1;">
-        <div style="display:flex;align-items:center;gap:8px;">
-          <div class="cmt-name">${c.name||'익명'}</div>
-          ${isMine ? `<button onclick="deleteCmt('${c.id}','${ytId}')" style="font-size:10px;background:none;border:none;color:var(--muted);cursor:pointer;padding:0;">삭제</button>` : ''}
-        </div>
-        <div class="cmt-text">${c.text}</div>
-        <div class="cmt-time">${new Date(c.created_at).toLocaleString('ko-KR')}</div>
-      </div>
-    </div>`;
-  }).join('') || '<div style="font-size:13px;color:var(--muted);padding:.75rem 0;">첫 댓글을 남겨보세요!</div>';
+  const {data}=await db.from('comments').select('*').eq('yt_id',ytId).order('created_at',{ascending:true});
+  const cmts=data||[];
+  document.getElementById('cmtCount').textContent=cmts.length;
+  document.getElementById('cmtList').innerHTML=cmts.map(c=>{
+    const isMine=currentUser&&c.user_id===currentUser.id;
+    return `<div class="cmt"><div class="cmt-av">${(c.name||'익')[0]}</div><div style="flex:1;"><div style="display:flex;align-items:center;gap:8px;"><div class="cmt-name">${c.name||'익명'}</div>${isMine?`<button onclick="deleteCmt('${c.id}','${ytId}')" style="font-size:10px;background:none;border:none;color:var(--muted);cursor:pointer;padding:0;">삭제</button>`:''}</div><div class="cmt-text">${c.text}</div><div class="cmt-time">${new Date(c.created_at).toLocaleString('ko-KR')}</div></div></div>`;
+  }).join('')||'<div style="font-size:13px;color:var(--muted);padding:.75rem 0;">첫 댓글을 남겨보세요!</div>';
 }
 
 async function postCmt() {
   if (!currentUser) { toast('로그인 후 댓글을 작성할 수 있어요'); return; }
-  const name = document.getElementById('cmtName').value.trim() || currentUser.user_metadata?.full_name || '익명';
-  const text = document.getElementById('cmtInput').value.trim();
-  if (!text) return;
-  const { error } = await db.from('comments').insert({ yt_id: curModalId, name, text, user_id: currentUser.id, user_email: currentUser.email });
-  if (error) { toast('댓글 등록 오류'); return; }
-  document.getElementById('cmtInput').value = '';
-  await loadCmts(curModalId);
-  toast('댓글 등록됨!');
+  const name=document.getElementById('cmtName').value.trim()||currentUser.user_metadata?.full_name||'익명';
+  const text=document.getElementById('cmtInput').value.trim(); if(!text) return;
+  const {error}=await db.from('comments').insert({yt_id:curModalId,name,text,user_id:currentUser.id,user_email:currentUser.email});
+  if(error){toast('댓글 등록 오류');return;}
+  document.getElementById('cmtInput').value='';
+  await loadCmts(curModalId); toast('댓글 등록됨!');
 }
 
-async function deleteCmt(cmtId, ytId) {
-  await db.from('comments').delete().eq('id', cmtId);
-  await loadCmts(ytId);
-  toast('댓글 삭제됨');
+async function deleteCmt(cmtId,ytId) {
+  await db.from('comments').delete().eq('id',cmtId);
+  await loadCmts(ytId); toast('댓글 삭제됨');
 }
 
-// ── 페이지 전환 ──
-function showPage(name, el) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.getElementById('page-' + name).classList.add('active');
-  document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-  if (el) el.classList.add('active');
-  if (name === 'bookmarks') renderBm();
-  if (name === 'admin') renderAdmTable();
-}
-
-// ── 관리자 (Supabase Auth) ──
+// ── 관리자 ──
 async function adminLogin() {
-  const email = document.getElementById('adminEmail').value.trim();
-  const pw = document.getElementById('adminPw').value;
-  const errEl = document.getElementById('loginError');
-  errEl.style.display = 'none';
-  if (!email || !pw) { errEl.textContent = '이메일과 비밀번호를 입력해주세요.'; errEl.style.display='block'; return; }
-  const { data, error } = await db.auth.signInWithPassword({ email, password: pw });
-  if (error) { errEl.textContent = '로그인 실패: ' + error.message; errEl.style.display='block'; return; }
+  const email=document.getElementById('adminEmail').value.trim();
+  const pw=document.getElementById('adminPw').value;
+  const errEl=document.getElementById('loginError');
+  errEl.style.display='none';
+  if(!email||!pw){errEl.textContent='이메일과 비밀번호를 입력해주세요.';errEl.style.display='block';return;}
+  const {data,error}=await db.auth.signInWithPassword({email,password:pw});
+  if(error){errEl.textContent='로그인 실패: '+error.message;errEl.style.display='block';return;}
   showAdminContent(data.user.email);
 }
 
 function showAdminContent(email) {
-  admLoggedIn = true;
+  admLoggedIn=true;
   document.getElementById('adminLoginArea').style.display='none';
   document.getElementById('adminContent').style.display='block';
-  document.getElementById('adminEmailLabel').textContent = email || '';
-  fillApiKeyInput();
-  renderAdmTable(); renderKws();
+  document.getElementById('adminEmailLabel').textContent=email||'';
+  fillApiKeyInput(); renderAdmTable(); renderTopicKwManager();
   toast('관리자로 로그인됨');
 }
 
 async function adminLogout() {
-  await db.auth.signOut();
-  admLoggedIn = false;
+  await db.auth.signOut(); admLoggedIn=false;
   document.getElementById('adminLoginArea').style.display='block';
   document.getElementById('adminContent').style.display='none';
-  document.getElementById('adminPw').value='';
-  document.getElementById('adminEmail').value='';
   toast('로그아웃됨');
 }
 
 function fillApiKeyInput() {
-  const el = document.getElementById('apiKeyInput');
-  const st = document.getElementById('apiStatus');
-  if (el && ytApiKey) { el.value = ytApiKey; st.textContent = '✓ YouTube API 키 저장됨'; st.className = 'status-msg ok'; }
+  const el=document.getElementById('apiKeyInput');
+  const st=document.getElementById('apiStatus');
+  if(el&&ytApiKey){el.value=ytApiKey;st.textContent='✓ YouTube API 키 저장됨';st.className='status-msg ok';}
+}
+
+// ── 주제별 키워드 관리자 UI ──
+function renderTopicKwManager() {
+  const container = document.getElementById('topicKwManager');
+  const savedTopics = JSON.parse(localStorage.getItem('aipulse_topics')||'null') || TOPICS;
+  container.innerHTML = Object.entries(savedTopics).filter(([k])=>k!=='all').map(([key,topic])=>`
+    <div class="topic-kw-section">
+      <div class="topic-kw-title">
+        <span style="background:rgba(255,68,68,0.15);color:var(--yt);border:1px solid rgba(255,68,68,0.3);padding:2px 10px;border-radius:20px;font-size:11px;">${topic.label}</span>
+      </div>
+      <div class="kw-list" id="kwlist-${key}">${(topic.keywords||[]).map((kw,i)=>`<span class="kw-chip">${kw}<button onclick="removeTopicKw('${key}',${i})">✕</button></span>`).join('')}</div>
+      <div class="kw-add-row">
+        <input id="kwinput-${key}" placeholder="키워드 추가...">
+        <button class="setup-btn" style="padding:7px 14px;font-size:12px;" onclick="addTopicKw('${key}')">추가</button>
+      </div>
+    </div>`).join('');
+}
+
+function addTopicKw(topicKey) {
+  const val = document.getElementById(`kwinput-${topicKey}`).value.trim(); if(!val) return;
+  const saved = JSON.parse(localStorage.getItem('aipulse_topics')||'null') || JSON.parse(JSON.stringify(TOPICS));
+  if (!saved[topicKey].keywords) saved[topicKey].keywords=[];
+  saved[topicKey].keywords.push(val);
+  localStorage.setItem('aipulse_topics', JSON.stringify(saved));
+  Object.assign(TOPICS, saved);
+  document.getElementById(`kwinput-${topicKey}`).value='';
+  renderTopicKwManager(); toast('키워드 추가됨');
+}
+
+function removeTopicKw(topicKey, idx) {
+  const saved = JSON.parse(localStorage.getItem('aipulse_topics')||'null') || JSON.parse(JSON.stringify(TOPICS));
+  saved[topicKey].keywords.splice(idx,1);
+  localStorage.setItem('aipulse_topics', JSON.stringify(saved));
+  Object.assign(TOPICS, saved);
+  renderTopicKwManager(); toast('키워드 삭제됨');
 }
 
 async function changePassword() {
-  const current = document.getElementById('pwCurrent').value;
-  const newPw = document.getElementById('pwNew').value;
-  const confirm = document.getElementById('pwConfirm').value;
-  const statusEl = document.getElementById('pwStatus');
-  statusEl.style.display = 'block';
-  if (!current || !newPw || !confirm) { statusEl.style.color='#f87171'; statusEl.textContent='모든 항목을 입력해주세요.'; return; }
-  if (newPw.length < 6) { statusEl.style.color='#f87171'; statusEl.textContent='새 비밀번호는 6자 이상이어야 합니다.'; return; }
-  if (newPw !== confirm) { statusEl.style.color='#f87171'; statusEl.textContent='새 비밀번호가 일치하지 않습니다.'; return; }
-  const { data: { user } } = await db.auth.getUser();
-  const { error: signInErr } = await db.auth.signInWithPassword({ email: user.email, password: current });
-  if (signInErr) { statusEl.style.color='#f87171'; statusEl.textContent='현재 비밀번호가 틀렸습니다.'; return; }
-  const { error } = await db.auth.updateUser({ password: newPw });
-  if (error) { statusEl.style.color='#f87171'; statusEl.textContent='변경 실패: '+error.message; return; }
-  statusEl.style.color='#6ee7b7'; statusEl.textContent='✓ 비밀번호가 변경됐습니다!';
-  document.getElementById('pwCurrent').value=''; document.getElementById('pwNew').value=''; document.getElementById('pwConfirm').value='';
-  setTimeout(()=>{ statusEl.style.display='none'; }, 3000);
+  const current=document.getElementById('pwCurrent').value;
+  const newPw=document.getElementById('pwNew').value;
+  const confirm=document.getElementById('pwConfirm').value;
+  const statusEl=document.getElementById('pwStatus');
+  statusEl.style.display='block';
+  if(!current||!newPw||!confirm){statusEl.style.color='#f87171';statusEl.textContent='모든 항목을 입력해주세요.';return;}
+  if(newPw.length<6){statusEl.style.color='#f87171';statusEl.textContent='새 비밀번호는 6자 이상이어야 합니다.';return;}
+  if(newPw!==confirm){statusEl.style.color='#f87171';statusEl.textContent='새 비밀번호가 일치하지 않습니다.';return;}
+  const {data:{user}}=await db.auth.getUser();
+  const {error:signInErr}=await db.auth.signInWithPassword({email:user.email,password:current});
+  if(signInErr){statusEl.style.color='#f87171';statusEl.textContent='현재 비밀번호가 틀렸습니다.';return;}
+  const {error}=await db.auth.updateUser({password:newPw});
+  if(error){statusEl.style.color='#f87171';statusEl.textContent='변경 실패: '+error.message;return;}
+  statusEl.style.color='#6ee7b7';statusEl.textContent='✓ 비밀번호가 변경됐습니다!';
+  document.getElementById('pwCurrent').value='';document.getElementById('pwNew').value='';document.getElementById('pwConfirm').value='';
+  setTimeout(()=>{statusEl.style.display='none';},3000);
 }
 
-function renderKws() {
-  document.getElementById('kwList').innerHTML = keywords.map((k,i)=>`<span class="kw-chip">${k}<button onclick="removeKw(${i})">✕</button></span>`).join('');
-}
-function addKw() {
-  const v = document.getElementById('newKw').value.trim(); if(!v) return;
-  keywords.push(v); localStorage.setItem('animai_kw', JSON.stringify(keywords));
-  document.getElementById('newKw').value=''; renderKws(); toast('키워드 추가됨');
-}
-function removeKw(i) { keywords.splice(i,1); localStorage.setItem('animai_kw', JSON.stringify(keywords)); renderKws(); }
-
-function setAdmFilter(f, el) {
-  admFilter = f;
-  document.querySelectorAll('#page-admin .tag').forEach(t=>t.classList.remove('on'));
+function setAdmFilter(f,el) {
+  admFilter=f;
+  document.querySelectorAll('#adminContent .topic-tab').forEach(t=>t.classList.remove('on'));
   el.classList.add('on'); renderAdmTable();
 }
 
 async function renderAdmTable() {
-  if (!admLoggedIn) return;
-  const { data } = await db.from('videos').select('*').order('created_at', { ascending: false });
-  const list = admFilter === 'hidden' ? (data||[]).filter(v=>v.status==='hidden') : (data||[]);
-  document.getElementById('admTbody').innerHTML = list.map(v=>`<tr>
+  if(!admLoggedIn) return;
+  const {data}=await db.from('videos').select('*').order('created_at',{ascending:false});
+  const list=admFilter==='hidden'?(data||[]).filter(v=>v.status==='hidden'):(data||[]);
+  document.getElementById('admTbody').innerHTML=list.map(v=>`<tr>
     <td style="max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${v.title}</td>
-    <td>${v.channel||''}</td>
+    <td><span style="font-size:10px;padding:2px 8px;border-radius:20px;background:rgba(255,68,68,0.1);color:var(--yt);border:1px solid rgba(255,68,68,0.2);">${TOPICS[v.tag]?.label||v.tag||''}</span></td>
     <td>${fmtV(v.views)}</td>
     <td>${v.like_count||0}</td>
     <td><span style="font-size:10px;padding:2px 8px;border-radius:4px;font-weight:700;${v.status==='approved'?'background:rgba(110,231,183,0.1);color:#6ee7b7;border:1px solid rgba(110,231,183,0.2);':'background:rgba(248,113,113,0.1);color:#f87171;border:1px solid rgba(248,113,113,0.2);'}">${v.status==='approved'?'표시중':'숨김'}</span></td>
@@ -792,19 +812,17 @@ async function renderAdmTable() {
   </tr>`).join('');
 }
 
-async function admHide(ytId) { await db.from('videos').update({status:'hidden'}).eq('yt_id',ytId); await loadVideos(); renderAdmTable(); toast('숨김 처리됨'); }
-async function admShow(ytId) { await db.from('videos').update({status:'approved'}).eq('yt_id',ytId); await loadVideos(); renderAdmTable(); toast('복원됨'); }
-async function admDel(ytId) { await db.from('videos').delete().eq('yt_id',ytId); await loadVideos(); renderAdmTable(); toast('삭제됨'); }
+async function admHide(ytId){await db.from('videos').update({status:'hidden'}).eq('yt_id',ytId);await loadVideos();renderAdmTable();toast('숨김 처리됨');}
+async function admShow(ytId){await db.from('videos').update({status:'approved'}).eq('yt_id',ytId);await loadVideos();renderAdmTable();toast('복원됨');}
+async function admDel(ytId){await db.from('videos').delete().eq('yt_id',ytId);await loadVideos();renderAdmTable();toast('삭제됨');}
 
 function toast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg; t.classList.add('show');
-  setTimeout(()=>t.classList.remove('show'), 2500);
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
 }
 
-const ADMIN_PW = '';
 init();
 </script>
 </body>
 </html>
-
