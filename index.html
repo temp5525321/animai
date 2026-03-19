@@ -411,8 +411,8 @@ footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center;
 </footer>
 
 <script>
-const SUPABASE_URL = 'https://unpztnvewqqhnwnyfopa.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVucHp0bnZld3FxaG53bnlmb3BhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3MTcxNTgsImV4cCI6MjA4OTI5MzE1OH0.g5iTLHWqaEIxGO9-PwRqmToy_eZz2gy4ra7eWODZluQ';
+const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
 
 const { createClient } = supabase;
 const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -998,20 +998,29 @@ async function openMlbModal(postId) {
   const thumbEl = document.getElementById('mlbModalThumb');
   let contentHtml = '';
 
-  // YouTube 영상이 있으면 최우선 표시
   const videoUrls = p.video_urls || [];
-  const ytVideos = videoUrls.filter(u => u.includes('youtube') || u.includes('youtu.be'));
+  const ytVideos = videoUrls.filter(u => u && (u.includes('youtube') || u.includes('youtu.be')));
+  const mp4Videos = videoUrls.filter(u => u && !u.includes('youtube') && !u.includes('youtu.be'));
 
+  // YouTube 영상 embed
   if (ytVideos.length > 0) {
-    // YouTube 영상 embed
-    const ytEmbeds = ytVideos.map(url => {
+    contentHtml += ytVideos.map(url => {
       let vid = '';
       if (url.includes('embed/')) vid = url.split('embed/')[1].split('?')[0];
       else if (url.includes('v=')) vid = url.split('v=')[1].split('&')[0];
       else if (url.includes('youtu.be/')) vid = url.split('youtu.be/')[1].split('?')[0];
       return vid ? `<div style="aspect-ratio:16/9;margin-bottom:10px;border-radius:8px;overflow:hidden;"><iframe src="https://www.youtube.com/embed/${vid}" allow="autoplay; encrypted-media" allowfullscreen style="width:100%;height:100%;border:none;"></iframe></div>` : '';
     }).filter(Boolean).join('');
-    contentHtml += ytEmbeds;
+  }
+
+  // mp4/video 파일 직접 재생
+  if (mp4Videos.length > 0) {
+    contentHtml += mp4Videos.map(url =>
+      `<video controls style="width:100%;border-radius:8px;margin-bottom:8px;background:#000;" preload="metadata">
+        <source src="${url}" type="video/mp4">
+        <a href="${url}" target="_blank" style="color:var(--accent);">영상 원본 보기 ↗</a>
+      </video>`
+    ).join('');
   }
 
   // 이미지들 표시
@@ -1022,7 +1031,7 @@ async function openMlbModal(postId) {
     ).join('');
   }
 
-  // 영상도 이미지도 없으면 썸네일
+  // 아무것도 없으면 썸네일
   if (!contentHtml && p.thumb) {
     contentHtml = `<img src="${p.thumb}" alt="" style="width:100%;border-radius:8px;margin-bottom:8px;">`;
   }
