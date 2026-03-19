@@ -202,24 +202,41 @@ def fetch_post_detail(session, post):
                     if not src.startswith('http'):
                         src = BASE_URL + src
                     video_urls.append(src)
-                # poster를 항상 썸네일로 우선 사용 (야구 로고 덮어씌우기)
+                # poster를 항상 썸네일로 우선 사용
                 poster = v.get('poster', '')
                 if poster:
                     if not poster.startswith('http'):
                         poster = BASE_URL + poster
-                    post['thumb'] = poster  # 항상 덮어씌움
+                    post['thumb'] = poster
 
-            # YouTube iframe
+            # iframe (YouTube + 외부 영상 embed)
             for iframe in content_el.select('iframe'):
                 src = iframe.get('src', '')
+                if not src:
+                    continue
                 if 'youtube' in src or 'youtu.be' in src:
-                    video_urls.append(src)
+                    # YouTube: embed URL로 통일 (watch URL과 중복 방지)
+                    vid = ''
+                    if 'embed/' in src: vid = src.split('embed/')[1].split('?')[0]
+                    elif 'v=' in src: vid = src.split('v=')[1].split('&')[0]
+                    if vid:
+                        embed_url = f'https://www.youtube.com/embed/{vid}'
+                        video_urls.append(embed_url)
+                else:
+                    # 외부 영상 iframe (트위터, 기타)
+                    video_urls.append(f'iframe:{src}')
 
-            # YouTube 링크
+            # YouTube watch 링크 (embed로 변환, 중복 방지)
             for a in content_el.select('a'):
                 href = a.get('href', '')
                 if 'youtube.com/watch' in href or 'youtu.be/' in href:
-                    video_urls.append(href)
+                    vid = ''
+                    if 'v=' in href: vid = href.split('v=')[1].split('&')[0]
+                    elif 'youtu.be/' in href: vid = href.split('youtu.be/')[1].split('?')[0]
+                    if vid:
+                        embed_url = f'https://www.youtube.com/embed/{vid}'
+                        if embed_url not in video_urls:
+                            video_urls.append(embed_url)
 
             # 중복 제거
             seen = set()
@@ -235,8 +252,6 @@ def fetch_post_detail(session, post):
                 for u in unique_urls:
                     vid = ''
                     if 'embed/' in u: vid = u.split('embed/')[1].split('?')[0]
-                    elif 'v=' in u: vid = u.split('v=')[1].split('&')[0]
-                    elif 'youtu.be/' in u: vid = u.split('youtu.be/')[1].split('?')[0]
                     if vid:
                         post['thumb'] = f'https://img.youtube.com/vi/{vid}/mqdefault.jpg'
                         break
