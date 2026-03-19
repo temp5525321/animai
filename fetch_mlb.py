@@ -24,23 +24,24 @@ HEADERS = {
 }
 
 BASE_URL = 'https://mlbpark.donga.com'
-LOGIN_URL = f'{BASE_URL}/user/login_proc.php'
+LOGIN_URL = 'https://secure.donga.com/membership/login_proc.php'
 BOARD_URL = f'{BASE_URL}/mp/b.php'
 
 def login():
     session = requests.Session()
     session.headers.update({
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
-        'Referer': BASE_URL
+        'Referer': 'https://secure.donga.com/membership/login.php'
     })
     data = {
-        'user_id': MLBPARK_ID,
-        'user_pw': MLBPARK_PW,
-        'url': '/'
+        'uid': MLBPARK_ID,
+        'upw': MLBPARK_PW,
+        'gourl': 'https://mlbpark.donga.com/'
     }
-    res = session.post(LOGIN_URL, data=data)
-    if res.status_code == 200:
-        print('로그인 성공')
+    res = session.post(LOGIN_URL, data=data, allow_redirects=True)
+    # 로그인 성공 여부 확인 (쿠키에 세션 정보 있으면 성공)
+    if 'PHPSESSID' in session.cookies or 'memberCookie' in session.cookies or res.status_code == 200:
+        print(f'로그인 시도 완료 (status: {res.status_code})')
         return session
     else:
         print(f'로그인 실패: {res.status_code}')
