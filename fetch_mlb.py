@@ -142,33 +142,86 @@ def fetch_posts(session, pages=3):
     return posts
 
 def fetch_post_detail(session, post):
-    """게시물 상세 페이지에서 본문 요약과 썸네일 추출"""
+    """게시물 상세 페이지에서 본문 전체, 이미지, 영상 URL 추출"""
     try:
-        res = session.get(post['url'], timeout=10)
+        res = session.get(post['url'], timeout=15)
         if res.status_code != 200:
             return post
 
         soup = BeautifulSoup(res.text, 'html.parser')
 
-        # 본문 텍스트 요약
-        content_el = soup.select_one('.board-content') or soup.select_one('.view-content') or soup.select_one('#board_content')
+        # 본문 영역 찾기
+        content_el = (soup.select_one('.board-content') or
+                     soup.select_one('.view-content') or
+                     soup.select_one('#board_content') or
+                     soup.select_one('.bbs_content') or
+                     soup.select_one('td.view_con'))
+
         if content_el:
+            # 본문 텍스트 요약
             text = content_el.get_text(strip=True)
-            post['summary'] = text[:200] + '...' if len(text) > 200 else text
+            post['summary'] = text[:300] + '...' if len(text) > 300 else text
+
+            # 본문 HTML 저장 (이미지/영상 포함)
+            post['content_html'] = str(content_el)
+
+            # 이미지 URL 수집
+            images = []
+            for img in content_el.select('img'):
+                src = img.get('src', '') or img.get('data-src', '')
+                if src:
+                    if not src.startswith('http'):
+                        src = BASE_URL + src
+                    # 버튼/아이콘 이미지 제외
+                    if not any(x in src for x in ['btn', 'ico', 'arrow', 'blank', 'loading']):
+                        images.append(src)
+            post['images'] = images[:10]  # 최대 10개
+
+            # 썸네일: 첫 번째 이미지
+            if not post.get('thumb') and images:
+                post['thumb'] = images[0]
+
+            # 영상 URL 수집 (YouTube, mp4 등)
+            video_urls = []
+
+            # YouTube iframe
+            for iframe in content_el.select('iframe'):
+                src = iframe.get('src', '')
+                if 'youtube' in src or 'youtu.be' in src:
+                    video_urls.append(src)
+
+            # 직접 링크된 YouTube URL
+            for a in content_el.select('a'):
+                href = a.get('href', '')
+                if 'youtube.com/watch' in href or 'youtu.be/' in href:
+                    video_urls.append(href)
+
+            # mp4 직접 링크
+            for a in content_el.select('a[href*=".mp4"]'):
+                video_urls.append(a.get('href', ''))
+
+            # video 태그
+            for v in content_el.select('video source, video'):
+                src = v.get('src', '')
+                if src:
+                    video_urls.append(src)
+
+            post['video_urls'] = list(set(video_urls))[:5]  # 중복 제거, 최대 5개
+            print(f'  상세: 이미지 {len(images)}개, 영상 {len(video_urls)}개')
+
         else:
             post['summary'] = ''
-
-        # 썸네일 (본문 첫 번째 이미지)
-        if not post['thumb']:
-            img_el = soup.select_one('.board-content img') or soup.select_one('.view-content img')
-            if img_el:
-                src = img_el.get('src', '')
-                if src and not src.startswith('http'):
-                    src = BASE_URL + src
-                post['thumb'] = src
+            post['content_html'] = ''
+            post['images'] = []
+            post['video_urls'] = []
+            print(f'  상세: 본문 영역 못 찾음')
 
     except Exception as e:
         print(f'상세 페이지 오류 ({post["url"]}): {e}')
+        post.setdefault('summary', '')
+        post.setdefault('content_html', '')
+        post.setdefault('images', [])
+        post.setdefault('video_urls', [])
 
     return post
 
@@ -208,7 +261,7 @@ def main():
         print('새로운 게시물이 없습니다.')
         return
 
-    # 상세 페이지에서 본문 요약 + 썸네일 추출
+    # 상세 페이지에서 본문 + 이미지 + 영상 추출
     enriched = []
     for p in new_posts[:10]:  # 최대 10개
         p = fetch_post_detail(session, p)
@@ -216,6 +269,9 @@ def main():
             'post_id': p['post_id'],
             'title': p['title'],
             'summary': p.get('summary', ''),
+            'content_html': p.get('content_html', ''),
+            'images': p.get('images', []),
+            'video_urls': p.get('video_urls', []),
             'thumb': p.get('thumb', ''),
             'url': p['url'],
             'author': p['author'],
