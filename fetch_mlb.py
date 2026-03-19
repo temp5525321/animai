@@ -24,24 +24,31 @@ HEADERS = {
 }
 
 BASE_URL = 'https://mlbpark.donga.com'
-LOGIN_URL = 'https://secure.donga.com/membership/login_proc.php'
+LOGIN_URL = 'https://secure.donga.com/mlbpark/trans_exe.php'
 BOARD_URL = f'{BASE_URL}/mp/b.php'
 
 def login():
     session = requests.Session()
     session.headers.update({
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
-        'Referer': 'https://secure.donga.com/membership/login.php'
+        'Referer': 'https://secure.donga.com/mlbpark/login.php',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'ko-KR,ko;q=0.9'
     })
     data = {
-        'uid': MLBPARK_ID,
-        'upw': MLBPARK_PW,
-        'gourl': 'https://mlbpark.donga.com/'
+        'idsave_value': '',
+        'errorChk': '',
+        'gourl': 'https://mlbpark.donga.com/mp',
+        'bid': MLBPARK_ID,
+        'bpw': MLBPARK_PW
     }
     res = session.post(LOGIN_URL, data=data, allow_redirects=True)
-    # 로그인 성공 여부 확인 (쿠키에 세션 정보 있으면 성공)
-    if 'PHPSESSID' in session.cookies or 'memberCookie' in session.cookies or res.status_code == 200:
-        print(f'로그인 시도 완료 (status: {res.status_code})')
+    print(f'로그인 시도 (status: {res.status_code})')
+    # 쿠키 확인
+    cookie_keys = list(session.cookies.keys())
+    print(f'쿠키: {cookie_keys}')
+    if res.status_code == 200:
+        print('로그인 성공')
         return session
     else:
         print(f'로그인 실패: {res.status_code}')
