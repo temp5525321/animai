@@ -150,19 +150,19 @@ def fetch_post_detail(session, post):
 
         soup = BeautifulSoup(res.text, 'html.parser')
 
-        # 본문 영역 찾기
-        content_el = (soup.select_one('.board-content') or
-                     soup.select_one('.view-content') or
-                     soup.select_one('#board_content') or
-                     soup.select_one('.bbs_content') or
-                     soup.select_one('td.view_con'))
+        # 실제 MLB파크 본문 영역: div.view_context > div.ar_txt#contentDetail
+        content_el = (soup.select_one('div.view_context div#contentDetail') or
+                     soup.select_one('#contentDetail') or
+                     soup.select_one('div.view_context .ar_txt') or
+                     soup.select_one('div.ar_txt') or
+                     soup.select_one('div.view_context'))
 
         if content_el:
             # 본문 텍스트 요약
             text = content_el.get_text(strip=True)
             post['summary'] = text[:300] + '...' if len(text) > 300 else text
 
-            # 본문 HTML 저장 (이미지/영상 포함)
+            # 본문 HTML 저장
             post['content_html'] = str(content_el)
 
             # 이미지 URL 수집
@@ -172,17 +172,33 @@ def fetch_post_detail(session, post):
                 if src:
                     if not src.startswith('http'):
                         src = BASE_URL + src
-                    # 버튼/아이콘 이미지 제외
                     if not any(x in src for x in ['btn', 'ico', 'arrow', 'blank', 'loading']):
                         images.append(src)
-            post['images'] = images[:10]  # 최대 10개
+            post['images'] = images[:10]
 
             # 썸네일: 첫 번째 이미지
             if not post.get('thumb') and images:
                 post['thumb'] = images[0]
 
-            # 영상 URL 수집 (YouTube, mp4 등)
+            # 영상 URL 수집
             video_urls = []
+
+            # video 태그 (MLB파크는 video.content_video 사용)
+            for v in content_el.select('video'):
+                src = v.get('src', '')
+                if not src:
+                    source = v.select_one('source')
+                    src = source.get('src', '') if source else ''
+                if src:
+                    if not src.startswith('http'):
+                        src = BASE_URL + src
+                    video_urls.append(src)
+                # 썸네일로 poster 이미지 활용
+                poster = v.get('poster', '')
+                if poster and not post.get('thumb'):
+                    if not poster.startswith('http'):
+                        poster = BASE_URL + poster
+                    post['thumb'] = poster
 
             # YouTube iframe
             for iframe in content_el.select('iframe'):
@@ -190,24 +206,14 @@ def fetch_post_detail(session, post):
                 if 'youtube' in src or 'youtu.be' in src:
                     video_urls.append(src)
 
-            # 직접 링크된 YouTube URL
+            # YouTube 링크
             for a in content_el.select('a'):
                 href = a.get('href', '')
                 if 'youtube.com/watch' in href or 'youtu.be/' in href:
                     video_urls.append(href)
 
-            # mp4 직접 링크
-            for a in content_el.select('a[href*=".mp4"]'):
-                video_urls.append(a.get('href', ''))
-
-            # video 태그
-            for v in content_el.select('video source, video'):
-                src = v.get('src', '')
-                if src:
-                    video_urls.append(src)
-
-            post['video_urls'] = list(set(video_urls))[:5]  # 중복 제거, 최대 5개
-            print(f'  상세: 이미지 {len(images)}개, 영상 {len(video_urls)}개')
+            post['video_urls'] = list(set(video_urls))[:5]
+            print(f'  상세: 이미지 {len(images)}개, 영상 {len(video_urls)}개, 요약 {len(text)}자')
 
         else:
             post['summary'] = ''
