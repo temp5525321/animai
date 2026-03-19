@@ -66,38 +66,63 @@ def fetch_posts(session, pages=3):
     for page in range(1, pages + 1):
         params = {
             'b': 'bullpen',
-            'search_select': 'sct',  # 말머리 검색
-            'search_input': '영화',   # 말머리: 영화
+            'search_select': 'sct',
+            'search_input': '영화',
             'page': page
         }
         res = session.get(BOARD_URL, params=params)
         if res.status_code != 200:
-            print(f'페이지 {page} 로드 실패')
+            print(f'페이지 {page} 로드 실패: {res.status_code}')
             continue
 
         soup = BeautifulSoup(res.text, 'html.parser')
-        rows = soup.select('tr.list-item') or soup.select('table.board-list tbody tr')
 
-        if not rows:
-            # 대안 셀렉터 시도
-            rows = soup.select('li.list-item') or soup.select('.bbs-list li')
+        # 디버그: 첫 페이지만 HTML 구조 출력
+        if page == 1:
+            # 테이블/리스트 구조 파악
+            tables = soup.find_all('table')
+            print(f'테이블 수: {len(tables)}')
+            for i, t in enumerate(tables[:3]):
+                print(f'테이블{i} class: {t.get("class")}')
+                rows = t.find_all('tr')
+                print(f'  tr 수: {len(rows)}')
+                if rows:
+                    print(f'  첫 tr class: {rows[0].get("class")}')
+                    if len(rows) > 1:
+                        print(f'  두번째 tr class: {rows[1].get("class")}')
+                        print(f'  두번째 tr HTML: {str(rows[1])[:300]}')
+
+            # 링크 패턴 확인
+            links = soup.select('a[href*="bbs_view"]') or soup.select('a[href*="num="]') or soup.select('a[href*="view"]')
+            print(f'게시물 링크 수: {len(links)}')
+            if links:
+                print(f'첫 링크: {links[0].get("href")} / 텍스트: {links[0].get_text(strip=True)[:50]}')
+
+        # 실제 셀렉터 시도
+        rows = (soup.select('tr.list-item') or
+                soup.select('table.board-list tbody tr') or
+                soup.select('tbody tr') or
+                soup.select('.list tr'))
 
         print(f'페이지 {page}: {len(rows)}개 행 발견')
 
         for row in rows:
             try:
-                # 제목 추출
-                title_el = row.select_one('td.title a') or row.select_one('.title a') or row.select_one('a.subject')
+                title_el = (row.select_one('td.title a') or
+                           row.select_one('.title a') or
+                           row.select_one('a[href*="bbs_view"]') or
+                           row.select_one('a[href*="num="]') or
+                           row.select_one('td a'))
                 if not title_el:
                     continue
 
                 title = title_el.get_text(strip=True)
+                if not title or len(title) < 2:
+                    continue
 
-                # AI 키워드 필터링
                 if 'AI' not in title and 'ai' not in title.lower():
                     continue
 
-                # 링크
                 href = title_el.get('href', '')
                 if href.startswith('/'):
                     url = BASE_URL + href
@@ -106,27 +131,24 @@ def fetch_posts(session, pages=3):
                 else:
                     url = href
 
-                # post_id 추출 (URL에서)
                 post_id = ''
                 if 'num=' in url:
                     post_id = url.split('num=')[1].split('&')[0]
                 elif 'seq=' in url:
                     post_id = url.split('seq=')[1].split('&')[0]
                 else:
-                    post_id = href.replace('/', '_').replace('?', '_')
+                    import hashlib
+                    post_id = hashlib.md5(url.encode()).hexdigest()[:12]
 
                 if not post_id:
                     continue
 
-                # 작성자
-                author_el = row.select_one('td.name') or row.select_one('.author') or row.select_one('td.nick')
+                author_el = (row.select_one('td.name') or
+                            row.select_one('.author') or
+                            row.select_one('td.nick') or
+                            row.select_one('td:nth-child(3)'))
                 author = author_el.get_text(strip=True) if author_el else '익명'
 
-                # 날짜
-                date_el = row.select_one('td.date') or row.select_one('.date') or row.select_one('td.time')
-                date_str = date_el.get_text(strip=True) if date_el else ''
-
-                # 썸네일 (있으면)
                 thumb_el = row.select_one('img')
                 thumb = thumb_el.get('src', '') if thumb_el else ''
                 if thumb and not thumb.startswith('http'):
@@ -137,13 +159,16 @@ def fetch_posts(session, pages=3):
                     'title': title,
                     'url': url,
                     'author': author,
-                    'date_str': date_str,
                     'thumb': thumb
                 })
+                print(f'  발견: {title[:40]}')
 
             except Exception as e:
                 print(f'행 파싱 오류: {e}')
                 continue
+
+        if page == 1:
+            break  # 디버그용: 첫 페이지만
 
     return posts
 
