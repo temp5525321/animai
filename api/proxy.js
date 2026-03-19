@@ -11,7 +11,6 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'URL parameter required' });
   }
 
-  // MLB파크 도메인만 허용
   const allowedDomains = ['mlbpark.donga.com', 'image.donga.com', 'donga.com'];
   let parsedUrl;
   try {
@@ -26,29 +25,38 @@ export default async function handler(req, res) {
   }
 
   try {
-    const response = await fetch(parsedUrl.toString(), {
-      headers: {
-        'Referer': 'https://mlbpark.donga.com/',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
-        'Accept': '*/*',
-        'Accept-Language': 'ko-KR,ko;q=0.9',
-      },
-    });
+    const upstreamHeaders = {
+      'Referer': 'https://mlbpark.donga.com/',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
+      'Accept': '*/*',
+      'Accept-Language': 'ko-KR,ko;q=0.9',
+    };
 
-    if (!response.ok) {
+    // Range 헤더 전달 (seek 지원)
+    if (req.headers.range) {
+      upstreamHeaders['Range'] = req.headers.range;
+    }
+
+    const response = await fetch(parsedUrl.toString(), { headers: upstreamHeaders });
+
+    if (!response.ok && response.status !== 206) {
       return res.status(response.status).json({ error: 'Upstream error' });
     }
 
-    // 응답 헤더 전달
     const contentType = response.headers.get('content-type') || 'video/mp4';
     const contentLength = response.headers.get('content-length');
+    const contentRange = response.headers.get('content-range');
+    const acceptRanges = response.headers.get('accept-ranges');
 
     res.setHeader('Content-Type', contentType);
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.setHeader('Accept-Ranges', acceptRanges || 'bytes');
     if (contentLength) res.setHeader('Content-Length', contentLength);
+    if (contentRange) res.setHeader('Content-Range', contentRange);
 
-    // 스트리밍으로 전달
+    res.status(response.status);
+
     const reader = response.body.getReader();
     while (true) {
       const { done, value } = await reader.read();
