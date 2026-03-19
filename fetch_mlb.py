@@ -64,13 +64,15 @@ def get_existing_post_ids():
 def fetch_posts(session, pages=3):
     posts = []
     for page in range(1, pages + 1):
-        # 제목+본문에서 AI 검색, 말머리 영화 필터
         params = {
-            'b': 'bullpen',
-            'search_select': 'sfl',
-            'search_input': 'AI',
+            'select': 'spf',
             'subselect': 'sct',
-            'subquery': '영화',
+            'm': 'search',
+            'b': 'bullpen',
+            'search_select2': 'spf',
+            'query': '영화',
+            'search_select3': 'sct',
+            'subquery': 'ai',
             'p': page
         }
         res = session.get(BOARD_URL, params=params)
@@ -89,7 +91,6 @@ def fetch_posts(session, pages=3):
 
         for row in rows:
             try:
-                # 공지 제외
                 first_td = row.select_one('td')
                 if first_td and first_td.get_text(strip=True) == '공지':
                     continue
@@ -102,10 +103,6 @@ def fetch_posts(session, pages=3):
 
                 title = title_el.get_text(strip=True)
                 if not title or len(title) < 2:
-                    continue
-
-                # AI 키워드 필터링 (대소문자 구분없이)
-                if 'AI' not in title and 'ai' not in title.lower() and 'Ai' not in title:
                     continue
 
                 href = title_el.get('href', '')
@@ -136,7 +133,7 @@ def fetch_posts(session, pages=3):
                     'author': author,
                     'thumb': thumb
                 })
-                print(f'  AI 발견: {title[:50]}')
+                print(f'  발견: {title[:50]}')
 
             except Exception as e:
                 print(f'행 파싱 오류: {e}')
