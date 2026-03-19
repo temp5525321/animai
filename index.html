@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="referrer" content="no-referrer">
 <title>AIPULSE — AI 콘텐츠 큐레이션 허브</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
@@ -1016,10 +1017,12 @@ async function openMlbModal(postId) {
   // mp4/video 파일 직접 재생
   if (mp4Videos.length > 0) {
     contentHtml += mp4Videos.map(url =>
-      `<video controls style="width:100%;border-radius:8px;margin-bottom:8px;background:#000;" preload="metadata">
-        <source src="${url}" type="video/mp4">
-        <a href="${url}" target="_blank" style="color:var(--accent);">영상 원본 보기 ↗</a>
-      </video>`
+      `<div style="margin-bottom:10px;">
+        <video controls referrerpolicy="no-referrer" style="width:100%;aspect-ratio:16/9;border-radius:8px;background:#000;" preload="none">
+          <source src="${url}" type="video/mp4" referrerpolicy="no-referrer">
+        </video>
+        <a href="${url}" target="_blank" referrerpolicy="no-referrer" style="display:block;text-align:center;margin-top:6px;font-size:12px;color:var(--accent);text-decoration:none;">▶ 영상이 재생되지 않으면 여기서 보기 ↗</a>
+      </div>`
     ).join('');
   }
 
