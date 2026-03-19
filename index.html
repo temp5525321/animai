@@ -1014,16 +1014,17 @@ async function openMlbModal(postId) {
     }).filter(Boolean).join('');
   }
 
-  // mp4/video 파일 직접 재생
+  // mp4/video 파일 직접 재생 (프록시 경유)
   if (mp4Videos.length > 0) {
-    contentHtml += mp4Videos.map(url =>
-      `<div style="margin-bottom:10px;">
-        <video controls referrerpolicy="no-referrer" style="width:100%;aspect-ratio:16/9;border-radius:8px;background:#000;" preload="none">
-          <source src="${url}" type="video/mp4" referrerpolicy="no-referrer">
+    contentHtml += mp4Videos.map(url => {
+      const proxyUrl = `/api/proxy?url=${encodeURIComponent(url)}`;
+      return `<div style="margin-bottom:10px;">
+        <video controls style="width:100%;aspect-ratio:16/9;border-radius:8px;background:#000;" preload="none">
+          <source src="${proxyUrl}" type="video/mp4">
         </video>
-        <a href="${url}" target="_blank" referrerpolicy="no-referrer" style="display:block;text-align:center;margin-top:6px;font-size:12px;color:var(--accent);text-decoration:none;">▶ 영상이 재생되지 않으면 여기서 보기 ↗</a>
-      </div>`
-    ).join('');
+        <a href="${url}" target="_blank" style="display:block;text-align:center;margin-top:6px;font-size:12px;color:var(--accent);text-decoration:none;">▶ 영상이 재생되지 않으면 여기서 보기 ↗</a>
+      </div>`;
+    }).join('');
   }
 
   // 이미지들 표시
