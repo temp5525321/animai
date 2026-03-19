@@ -169,7 +169,7 @@ def fetch_post_detail(session, post):
         if content_el:
             # 본문 텍스트 요약
             text = content_el.get_text(strip=True)
-            post['summary'] = text[:300] + '...' if len(text) > 300 else text
+            post['summary'] = text
 
             # 본문 HTML 저장
             post['content_html'] = str(content_el)
