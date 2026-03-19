@@ -1,14 +1,13 @@
-name: 영상 자동 수집
+name: 콘텐츠 자동 수집
 
 on:
   schedule:
     - cron: '7,37 * * * *'  # 매시간 7분, 37분에 실행
-  workflow_dispatch:          # 수동 실행 버튼도 활성화
+  workflow_dispatch:          # 수동 실행 버튼
 
 jobs:
-  fetch-videos:
+  fetch-youtube:
     runs-on: ubuntu-latest
-
     steps:
       - name: 코드 체크아웃
         uses: actions/checkout@v4
@@ -21,9 +20,31 @@ jobs:
       - name: 패키지 설치
         run: pip install requests
 
-      - name: 영상 수집 실행
+      - name: YouTube 영상 수집
         env:
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: python fetch_videos.py
+
+  fetch-mlbpark:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Python 설정
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 패키지 설치
+        run: pip install requests beautifulsoup4
+
+      - name: MLB파크 게시물 수집
+        env:
+          MLBPARK_ID: ${{ secrets.MLBPARK_ID }}
+          MLBPARK_PW: ${{ secrets.MLBPARK_PW }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: python fetch_mlb.py
