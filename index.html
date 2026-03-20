@@ -250,7 +250,7 @@ footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center;
     <button class="topic-tab on" onclick="setMlbCategory('all',this)">전체</button>
     <button class="topic-tab" onclick="setMlbCategory('movie',this)">영화</button>
     <button class="topic-tab" onclick="setMlbCategory('broadcast',this)">방송</button>
-    <button class="topic-tab" onclick="setMlbCategory('19gum',this)">19금</button>
+    <button class="topic-tab" onclick="setMlbCategory('cartoon',this)">만화</button>
   </div>
 
   <div class="toolbar">
@@ -921,7 +921,7 @@ function setMlbCategory(cat, el) {
   curMlbCategory = cat;
   document.querySelectorAll('#mlbCategoryTabs .topic-tab').forEach(t => t.classList.remove('on'));
   if (el) el.classList.add('on');
-  const labels = { all: '전체 게시물', movie: '영화 게시물', broadcast: '방송 게시물', 19gum: '19금 게시물' };
+  const labels = { all: '전체 게시물', movie: '영화 게시물', broadcast: '방송 게시물', cartoon: '만화 게시물' };
   const label = document.getElementById('mlbSecLabel');
   if (label) label.textContent = labels[cat] || '전체 게시물';
   renderMlbGrid();

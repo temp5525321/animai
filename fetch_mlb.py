@@ -61,7 +61,7 @@ def get_existing_post_ids():
     data = res.json()
     return set(item['post_id'] for item in data)
 
-SEARCH_CATEGORIES = ['영화', '방송', '19금']
+SEARCH_CATEGORIES = ['영화', '방송', '만화']
 
 def fetch_posts(session, pages=3):
     posts = []
@@ -343,7 +343,7 @@ def main():
             'thumb': p.get('thumb', ''),
             'url': p['url'],
             'author': p['author'],
-            'tag': 'movie' if p.get('category') == '영화' else ('broadcast' if p.get('category') == '방송' else ('cartoon' if p.get('category') == '19금' else p.get('category', 'movie'))),
+            'tag': 'movie' if p.get('category') == '영화' else ('broadcast' if p.get('category') == '방송' else ('cartoon' if p.get('category') == '만화' else p.get('category', 'movie'))),
             'status': 'approved',
             'created_at': datetime.now(KST).strftime('%Y-%m-%d %H:%M:%S+09')
         })
