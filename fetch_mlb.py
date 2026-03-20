@@ -196,6 +196,34 @@ def fetch_post_detail(session, post):
                 post['thumb'] = images[0]
 
             video_urls = []
+            # 추가: .mp4로 끝나는 a 태그 링크 수집
+            for a in content_el.select('a[href$=".mp4"], a[href$=".m4v"], a[href$=".mov"], a[href*="stream"], a[href*="catbox"]'):
+                href = a.get('href', '')
+                if href:
+                    if not href.startswith('http'):
+                        href = BASE_URL + href
+                    if href not in video_urls:
+                        video_urls.append(href)
+                        print(f'  발견 mp4 링크: {href}')
+
+# 추가: 본문 텍스트에서 http~ .mp4 패턴 추출
+            text = content_el.get_text(separator=' ', strip=True)
+            import re
+            mp4_in_text = re.findall(r'(https?://[^\s<>"\']+\.(?:mp4|m4v|mov|mkv|avi|wmv|flv))', text, re.IGNORECASE)
+            for url in mp4_in_text:
+                if url not in video_urls:
+                    video_urls.append(url)
+                    print(f'  텍스트 mp4 발견: {url}')
+
+# 추가: img 태그 중 src가 .mp4인 경우 (드물지만 있음)
+            for img in content_el.select('img[src$=".mp4"], img[src$=".gif"]'):
+                src = img.get('src', '') or img.get('data-src', '')
+                if src and src.lower().endswith(('.mp4', '.gif')):
+                    if not src.startswith('http'):
+                        src = BASE_URL + src
+                    if src not in video_urls:
+                        video_urls.append(src)
+                        print(f'  img 위장 동영상: {src}')
 
             for v in content_el.select('video'):
                 src = v.get('src', '')
@@ -312,8 +340,14 @@ def main():
         video_urls = p.get('video_urls', [])
         images = p.get('images', [])
 
-        if not video_urls:
-            print(f'  영상 없음, 스킵: {p["title"][:30]}')
+        # 기존 (이 부분을 주석 처리하거나 삭제)
+#       if not video_urls:
+#           print(f'  영상 없음, 스킵: {p["title"][:30]}')
+#           continue
+
+# 수정: 영상 없어도 이미지 있으면 저장
+        if not video_urls and not images:
+            print(f'  영상/이미지 모두 없음, 스킵: {p["title"][:30]}')
             continue
 
         enriched.append({
