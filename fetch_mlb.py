@@ -61,7 +61,7 @@ def get_existing_post_ids():
     data = res.json()
     return set(item['post_id'] for item in data)
 
-SEARCH_CATEGORIES = ['영화', '방송', '만화']
+SEARCH_CATEGORIES = ['영화', '방송', '만화', '19금']
 
 def fetch_posts(session, pages=3):
     posts = []
@@ -341,7 +341,7 @@ def main():
                 print(f'  영상 없음, 스킵: {p["title"][:30]}')
                 continue
 
-            tag_map = {'영화': 'movie', '방송': 'broadcast', '만화': 'cartoon'}
+            tag_map = {'영화': 'movie', '방송': 'broadcast', '만화': 'cartoon', '19금': 'nineteen'}
             enriched.append({
                 'post_id': p['post_id'],
                 'title': p['title'],
