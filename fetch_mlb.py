@@ -61,7 +61,8 @@ def get_existing_post_ids():
     data = res.json()
     return set(item['post_id'] for item in data)
 
-SEARCH_CATEGORIES = ['영화', '방송']
+# 여기만 변경됨
+SEARCH_CATEGORIES = ['영화', '방송', '17금', '19금', '주번나']
 
 def fetch_posts(session, pages=3):
     posts = []
@@ -95,69 +96,69 @@ def fetch_posts(session, pages=3):
             rows = table.select('tbody tr') or table.select('tr')
             print(f'페이지 {page}: {len(rows)}개 행 발견')
 
-        for row in rows:
-            try:
-                first_td = row.select_one('td')
-                if first_td and first_td.get_text(strip=True) == '공지':
+            for row in rows:
+                try:
+                    first_td = row.select_one('td')
+                    if first_td and first_td.get_text(strip=True) == '공지':
+                        continue
+
+                    title_el = (row.select_one('a[href*="m=view"]') or
+                               row.select_one('td.t_left a') or
+                               row.select_one('a[href*="bullpen"]'))
+                    if not title_el:
+                        continue
+
+                    title = title_el.get_text(strip=True)
+                    if not title or len(title) < 2:
+                        continue
+
+                    href = title_el.get('href', '')
+                    url = href if href.startswith('http') else (BASE_URL + href if href.startswith('/') else BASE_URL + '/' + href)
+
+                    post_id = ''
+                    if 'id=' in url:
+                        post_id = url.split('id=')[1].split('&')[0]
+                    if not post_id:
+                        import hashlib
+                        post_id = hashlib.md5(url.encode()).hexdigest()[:12]
+
+                    # 카테고리 간 중복 제거
+                    if post_id in seen_ids:
+                        continue
+                    seen_ids.add(post_id)
+
+                    # 작성자: data-unick 속성 또는 td 텍스트
+                    author = ''
+                    author_el = row.select_one('[data-unick]')
+                    if author_el:
+                        import urllib.parse
+                        author = urllib.parse.unquote(author_el.get('data-unick', ''))
+                    if not author:
+                        td_author = row.select_one('td:nth-child(3) a') or row.select_one('td:nth-child(3)')
+                        author = td_author.get_text(strip=True) if td_author else '익명'
+
+                    thumb_el = row.select_one('img:not([src*="btn"]):not([src*="ico"])')
+                    thumb = ''
+                    if thumb_el:
+                        src = thumb_el.get('src', '')
+                        if src and not src.startswith('http'):
+                            src = BASE_URL + src
+                        if src and not any(x in src for x in ['Profile', 'profile', 'logo', 'btn', 'ico', 'ugc/WWW']):
+                            thumb = src
+
+                    posts.append({
+                        'post_id': post_id,
+                        'title': title,
+                        'url': url,
+                        'author': author,
+                        'thumb': thumb,
+                        'category': category  # 말머리 카테고리 저장
+                    })
+                    print(f'  발견: [{category}] {title[:40]}')
+
+                except Exception as e:
+                    print(f'행 파싱 오류: {e}')
                     continue
-
-                title_el = (row.select_one('a[href*="m=view"]') or
-                           row.select_one('td.t_left a') or
-                           row.select_one('a[href*="bullpen"]'))
-                if not title_el:
-                    continue
-
-                title = title_el.get_text(strip=True)
-                if not title or len(title) < 2:
-                    continue
-
-                href = title_el.get('href', '')
-                url = href if href.startswith('http') else (BASE_URL + href if href.startswith('/') else BASE_URL + '/' + href)
-
-                post_id = ''
-                if 'id=' in url:
-                    post_id = url.split('id=')[1].split('&')[0]
-                if not post_id:
-                    import hashlib
-                    post_id = hashlib.md5(url.encode()).hexdigest()[:12]
-
-                # 카테고리 간 중복 제거
-                if post_id in seen_ids:
-                    continue
-                seen_ids.add(post_id)
-
-                # 작성자: data-unick 속성 또는 td 텍스트
-                author = ''
-                author_el = row.select_one('[data-unick]')
-                if author_el:
-                    import urllib.parse
-                    author = urllib.parse.unquote(author_el.get('data-unick', ''))
-                if not author:
-                    td_author = row.select_one('td:nth-child(3) a') or row.select_one('td:nth-child(3)')
-                    author = td_author.get_text(strip=True) if td_author else '익명'
-
-                thumb_el = row.select_one('img:not([src*="btn"]):not([src*="ico"])')
-                thumb = ''
-                if thumb_el:
-                    src = thumb_el.get('src', '')
-                    if src and not src.startswith('http'):
-                        src = BASE_URL + src
-                    if src and not any(x in src for x in ['Profile', 'profile', 'logo', 'btn', 'ico', 'ugc/WWW']):
-                        thumb = src
-
-                posts.append({
-                    'post_id': post_id,
-                    'title': title,
-                    'url': url,
-                    'author': author,
-                    'thumb': thumb,
-                    'category': category  # 말머리 카테고리 저장
-                })
-                print(f'  발견: [{category}] {title[:40]}')
-
-            except Exception as e:
-                print(f'행 파싱 오류: {e}')
-                continue
 
     return posts
 
@@ -170,7 +171,6 @@ def fetch_post_detail(session, post):
 
         soup = BeautifulSoup(res.text, 'html.parser')
 
-        # 실제 MLB파크 본문 영역: div.view_context > div.ar_txt#contentDetail
         content_el = (soup.select_one('div.view_context div#contentDetail') or
                      soup.select_one('#contentDetail') or
                      soup.select_one('div.view_context .ar_txt') or
@@ -178,14 +178,10 @@ def fetch_post_detail(session, post):
                      soup.select_one('div.view_context'))
 
         if content_el:
-            # 본문 텍스트 요약
             text = content_el.get_text(strip=True)
             post['summary'] = text
-
-            # 본문 HTML 저장
             post['content_html'] = str(content_el)
 
-            # 이미지 URL 수집
             images = []
             for img in content_el.select('img'):
                 src = img.get('src', '') or img.get('data-src', '')
@@ -196,14 +192,11 @@ def fetch_post_detail(session, post):
                         images.append(src)
             post['images'] = images[:10]
 
-            # 썸네일: 첫 번째 이미지
             if not post.get('thumb') and images:
                 post['thumb'] = images[0]
 
-            # 영상 URL 수집
             video_urls = []
 
-            # video 태그 (MLB파크는 video.content_video 사용)
             for v in content_el.select('video'):
                 src = v.get('src', '')
                 if not src:
@@ -213,20 +206,17 @@ def fetch_post_detail(session, post):
                     if not src.startswith('http'):
                         src = BASE_URL + src
                     video_urls.append(src)
-                # poster를 항상 썸네일로 우선 사용
                 poster = v.get('poster', '')
                 if poster:
                     if not poster.startswith('http'):
                         poster = BASE_URL + poster
                     post['thumb'] = poster
 
-            # iframe (YouTube + 외부 영상 embed)
             for iframe in content_el.select('iframe'):
                 src = iframe.get('src', '')
                 if not src:
                     continue
                 if 'youtube' in src or 'youtu.be' in src:
-                    # YouTube: embed URL로 통일 (watch URL과 중복 방지)
                     vid = ''
                     if 'embed/' in src: vid = src.split('embed/')[1].split('?')[0]
                     elif 'v=' in src: vid = src.split('v=')[1].split('&')[0]
@@ -234,10 +224,8 @@ def fetch_post_detail(session, post):
                         embed_url = f'https://www.youtube.com/embed/{vid}'
                         video_urls.append(embed_url)
                 else:
-                    # 외부 영상 iframe (트위터, 기타)
                     video_urls.append(f'iframe:{src}')
 
-            # YouTube watch 링크 (embed로 변환, 중복 방지)
             for a in content_el.select('a'):
                 href = a.get('href', '')
                 if 'youtube.com/watch' in href or 'youtu.be/' in href:
@@ -249,7 +237,6 @@ def fetch_post_detail(session, post):
                         if embed_url not in video_urls:
                             video_urls.append(embed_url)
 
-            # 중복 제거
             seen = set()
             unique_urls = []
             for u in video_urls:
@@ -258,7 +245,6 @@ def fetch_post_detail(session, post):
                     unique_urls.append(u)
             post['video_urls'] = unique_urls[:5]
 
-            # YouTube 영상이 있으면 썸네일 추출
             if not post.get('thumb'):
                 for u in unique_urls:
                     vid = ''
@@ -286,7 +272,6 @@ def fetch_post_detail(session, post):
     return post
 
 def insert_posts(posts):
-    # upsert로 중복 방지
     headers = {**HEADERS, 'Prefer': 'resolution=merge-duplicates,return=minimal'}
     res = requests.post(
         f'{SUPABASE_URL}/rest/v1/mlb_posts',
@@ -321,14 +306,12 @@ def main():
         print('새로운 게시물이 없습니다.')
         return
 
-    # 상세 페이지에서 본문 + 이미지 + 영상 추출
     enriched = []
-    for p in new_posts[:20]:  # 더 많이 시도해서 영상 있는 것 10개 채우기
+    for p in new_posts[:20]:
         p = fetch_post_detail(session, p)
         video_urls = p.get('video_urls', [])
         images = p.get('images', [])
 
-        # 영상이 있는 게시물만 저장
         if not video_urls:
             print(f'  영상 없음, 스킵: {p["title"][:30]}')
             continue
@@ -348,7 +331,7 @@ def main():
             'created_at': datetime.now(KST).strftime('%Y-%m-%d %H:%M:%S+09')
         })
 
-        if len(enriched) >= 10:  # 최대 10개
+        if len(enriched) >= 10:
             break
 
     success = insert_posts(enriched)
