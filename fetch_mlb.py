@@ -61,33 +61,39 @@ def get_existing_post_ids():
     data = res.json()
     return set(item['post_id'] for item in data)
 
+SEARCH_CATEGORIES = ['영화', '방송']
+
 def fetch_posts(session, pages=3):
     posts = []
-    for page in range(1, pages + 1):
-        params = {
-            'select': 'spf',
-            'subselect': 'sct',
-            'm': 'search',
-            'b': 'bullpen',
-            'search_select2': 'spf',
-            'query': '영화',
-            'search_select3': 'sct',
-            'subquery': 'ai',
-            'p': page
-        }
-        res = session.get(BOARD_URL, params=params)
-        if res.status_code != 200:
-            print(f'페이지 {page} 로드 실패: {res.status_code}')
-            continue
+    seen_ids = set()
 
-        soup = BeautifulSoup(res.text, 'html.parser')
-        table = soup.select_one('table.tbl_type01')
-        if not table:
-            print(f'페이지 {page}: 테이블 없음')
-            continue
+    for category in SEARCH_CATEGORIES:
+        print(f'\n[{category}] 말머리 검색 시작')
+        for page in range(1, pages + 1):
+            params = {
+                'select': 'spf',
+                'subselect': 'sct',
+                'm': 'search',
+                'b': 'bullpen',
+                'search_select2': 'spf',
+                'query': category,
+                'search_select3': 'sct',
+                'subquery': 'ai',
+                'p': page
+            }
+            res = session.get(BOARD_URL, params=params)
+            if res.status_code != 200:
+                print(f'페이지 {page} 로드 실패: {res.status_code}')
+                continue
 
-        rows = table.select('tbody tr') or table.select('tr')
-        print(f'페이지 {page}: {len(rows)}개 행 발견')
+            soup = BeautifulSoup(res.text, 'html.parser')
+            table = soup.select_one('table.tbl_type01')
+            if not table:
+                print(f'페이지 {page}: 테이블 없음')
+                continue
+
+            rows = table.select('tbody tr') or table.select('tr')
+            print(f'페이지 {page}: {len(rows)}개 행 발견')
 
         for row in rows:
             try:
@@ -115,6 +121,11 @@ def fetch_posts(session, pages=3):
                     import hashlib
                     post_id = hashlib.md5(url.encode()).hexdigest()[:12]
 
+                # 카테고리 간 중복 제거
+                if post_id in seen_ids:
+                    continue
+                seen_ids.add(post_id)
+
                 # 작성자: data-unick 속성 또는 td 텍스트
                 author = ''
                 author_el = row.select_one('[data-unick]')
@@ -131,7 +142,6 @@ def fetch_posts(session, pages=3):
                     src = thumb_el.get('src', '')
                     if src and not src.startswith('http'):
                         src = BASE_URL + src
-                    # 프로필 이미지, 로고 등 제외
                     if src and not any(x in src for x in ['Profile', 'profile', 'logo', 'btn', 'ico', 'ugc/WWW']):
                         thumb = src
 
@@ -140,9 +150,10 @@ def fetch_posts(session, pages=3):
                     'title': title,
                     'url': url,
                     'author': author,
-                    'thumb': thumb
+                    'thumb': thumb,
+                    'category': category  # 말머리 카테고리 저장
                 })
-                print(f'  발견: {title[:50]}')
+                print(f'  발견: [{category}] {title[:40]}')
 
             except Exception as e:
                 print(f'행 파싱 오류: {e}')
@@ -332,7 +343,7 @@ def main():
             'thumb': p.get('thumb', ''),
             'url': p['url'],
             'author': p['author'],
-            'tag': 'movie',
+            'tag': p.get('category', 'movie'),
             'status': 'approved',
             'created_at': datetime.now(KST).strftime('%Y-%m-%d %H:%M:%S+09')
         })
