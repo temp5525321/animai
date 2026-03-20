@@ -321,35 +321,45 @@ def main():
         print('새로운 게시물이 없습니다.')
         return
 
-    # 상세 페이지에서 본문 + 이미지 + 영상 추출
+    # 카테고리별로 최대 10개씩 처리
+    from collections import defaultdict
+    category_posts = defaultdict(list)
+    for p in new_posts:
+        cat = p.get('category', '영화')
+        category_posts[cat].append(p)
+
     enriched = []
-    for p in new_posts[:20]:  # 더 많이 시도해서 영상 있는 것 10개 채우기
-        p = fetch_post_detail(session, p)
-        video_urls = p.get('video_urls', [])
-        images = p.get('images', [])
+    for category, cat_posts in category_posts.items():
+        print(f'\n[{category}] 상세 크롤링 시작 ({len(cat_posts)}개 신규)')
+        cat_saved = 0
+        for p in cat_posts[:20]:  # 카테고리당 최대 20개 시도해서 10개 채우기
+            p = fetch_post_detail(session, p)
+            video_urls = p.get('video_urls', [])
+            images = p.get('images', [])
 
-        # 영상이 있는 게시물만 저장
-        if not video_urls:
-            print(f'  영상 없음, 스킵: {p["title"][:30]}')
-            continue
+            if not video_urls:
+                print(f'  영상 없음, 스킵: {p["title"][:30]}')
+                continue
 
-        enriched.append({
-            'post_id': p['post_id'],
-            'title': p['title'],
-            'summary': p.get('summary', ''),
-            'content_html': p.get('content_html', ''),
-            'images': images,
-            'video_urls': video_urls,
-            'thumb': p.get('thumb', ''),
-            'url': p['url'],
-            'author': p['author'],
-            'tag': 'movie' if p.get('category') == '영화' else ('broadcast' if p.get('category') == '방송' else ('cartoon' if p.get('category') == '만화' else p.get('category', 'movie'))),
-            'status': 'approved',
-            'created_at': datetime.now(KST).strftime('%Y-%m-%d %H:%M:%S+09')
-        })
-
-        if len(enriched) >= 10:  # 최대 10개
-            break
+            tag_map = {'영화': 'movie', '방송': 'broadcast', '만화': 'cartoon'}
+            enriched.append({
+                'post_id': p['post_id'],
+                'title': p['title'],
+                'summary': p.get('summary', ''),
+                'content_html': p.get('content_html', ''),
+                'images': images,
+                'video_urls': video_urls,
+                'thumb': p.get('thumb', ''),
+                'url': p['url'],
+                'author': p['author'],
+                'tag': tag_map.get(category, category),
+                'status': 'approved',
+                'created_at': datetime.now(KST).strftime('%Y-%m-%d %H:%M:%S+09')
+            })
+            cat_saved += 1
+            if cat_saved >= 10:
+                break
+        print(f'  [{category}] {cat_saved}개 저장 예정')
 
     success = insert_posts(enriched)
     if success:
