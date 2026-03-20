@@ -343,7 +343,7 @@ def main():
             'thumb': p.get('thumb', ''),
             'url': p['url'],
             'author': p['author'],
-            'tag': p.get('category', 'movie'),
+            'tag': 'movie' if p.get('category') == '영화' else p.get('category', 'movie'),
             'status': 'approved',
             'created_at': datetime.now(KST).strftime('%Y-%m-%d %H:%M:%S+09')
         })

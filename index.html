@@ -236,13 +236,20 @@ footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center;
 <!-- MLB파크 PAGE -->
 <div class="page" id="page-mlb">
   <div class="hero">
-    <h1><span class="t1">MLB</span><br><span class="t2">파크</span></h1>
-    <p>MLB파크 불펜 영화 말머리에서 수집한 AI 관련 게시물 모음.</p>
+    <h1><span class="t1">AI</span><br><span class="t2">PULSE</span></h1>
+    <p>MLB파크 불펜 영화·방송 말머리에서 자동 수집한 AI 관련 게시물 모음.</p>
     <div class="stats-row">
       <div class="stat"><div class="stat-num" id="mlbTotalCount">0</div><div class="stat-label">총 게시물</div></div>
       <div class="stat"><div class="stat-num" id="mlbLikedCount">0</div><div class="stat-label">내 좋아요</div></div>
       <div class="stat"><div class="stat-num" id="mlbBmCount">0</div><div class="stat-label">북마크</div></div>
     </div>
+  </div>
+
+  <!-- MLB 카테고리 탭 -->
+  <div class="topic-tabs" id="mlbCategoryTabs">
+    <button class="topic-tab on" onclick="setMlbCategory('all',this)">전체</button>
+    <button class="topic-tab" onclick="setMlbCategory('movie',this)">영화</button>
+    <button class="topic-tab" onclick="setMlbCategory('방송',this)">방송</button>
   </div>
 
   <div class="toolbar">
@@ -257,7 +264,7 @@ footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center;
   </div>
 
   <div class="section">
-    <div class="sec-label">MLB파크 AI 게시물</div>
+    <div class="sec-label" id="mlbSecLabel">전체 게시물</div>
     <div class="grid" id="mlbGrid"></div>
     <div class="empty-st" id="mlbEmptyState" style="display:none;">게시물이 없습니다.</div>
   </div>
@@ -444,6 +451,7 @@ let mlbPosts = [];
 let mlbBookmarks = [];
 let mlbLikedIds = [];
 let curMlbModalId = null;
+let curMlbCategory = 'all';
 
 // ── 초기화 ──
 async function init() {
@@ -908,10 +916,29 @@ async function loadMlbPosts() {
   updateMlbStats();
 }
 
+function setMlbCategory(cat, el) {
+  curMlbCategory = cat;
+  document.querySelectorAll('#mlbCategoryTabs .topic-tab').forEach(t => t.classList.remove('on'));
+  if (el) el.classList.add('on');
+  const labels = { all: '전체 게시물', movie: '영화 게시물', '방송': '방송 게시물' };
+  const label = document.getElementById('mlbSecLabel');
+  if (label) label.textContent = labels[cat] || '전체 게시물';
+  renderMlbGrid();
+}
+
 function renderMlbGrid() {
   const q = document.getElementById('mlbSearchInput')?.value.toLowerCase()||'';
   const sort = document.getElementById('mlbSortSel')?.value||'newest';
-  let list = mlbPosts.filter(p => !q || p.title.toLowerCase().includes(q) || (p.author||'').toLowerCase().includes(q));
+  let list = mlbPosts.filter(p => {
+    // 카테고리 필터
+    if (curMlbCategory !== 'all') {
+      if (curMlbCategory === 'movie' && p.tag !== 'movie') return false;
+      if (curMlbCategory === '방송' && p.tag !== '방송') return false;
+    }
+    // 검색 필터
+    if (q && !p.title.toLowerCase().includes(q) && !(p.author||'').toLowerCase().includes(q)) return false;
+    return true;
+  });
   if (sort==='likes') list.sort((a,b)=>(b.like_count||0)-(a.like_count||0));
   else list.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
 
@@ -967,6 +994,7 @@ function buildMlbCard(p) {
       ${thumbHtml}
       <div class="play-ov"><div class="play-circle" style="background:linear-gradient(135deg,var(--mlb),#2563eb);"><div class="play-tri"></div></div></div>
       <span class="platform-badge badge-mlb">MLB</span>
+      <span style="position:absolute;top:8px;left:52px;font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:rgba(0,0,0,0.6);color:#fff;">${p.tag==='방송'?'방송':'영화'}</span>
       <button class="like-btn${liked?' liked':''}" onclick="toggleMlbLike(event,'${p.post_id}')">♥ ${p.like_count||0}</button>
       <button class="bm-btn${saved?' saved':''}" onclick="toggleMlbBm(event,'${p.post_id}')">☆</button>
     </div>
