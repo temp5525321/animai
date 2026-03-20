@@ -250,6 +250,9 @@ footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center;
     <button class="topic-tab on" onclick="setMlbCategory('all',this)">전체</button>
     <button class="topic-tab" onclick="setMlbCategory('movie',this)">영화</button>
     <button class="topic-tab" onclick="setMlbCategory('방송',this)">방송</button>
+    <button class="topic-tab" data-category="17금" onclick="setMlbCategory('17금', this)">17금</button>
+    <button class="topic-tab" data-category="19금" onclick="setMlbCategory('19금', this)">19금</button>
+    <button class="topic-tab" data-category="주번나" onclick="setMlbCategory('주번나', this)">주번나</button>
   </div>
 
   <div class="toolbar">
@@ -920,7 +923,7 @@ function setMlbCategory(cat, el) {
   curMlbCategory = cat;
   document.querySelectorAll('#mlbCategoryTabs .topic-tab').forEach(t => t.classList.remove('on'));
   if (el) el.classList.add('on');
-  const labels = { all: '전체 게시물', movie: '영화 게시물', '방송': '방송 게시물' };
+  const labels = { all: '전체 게시물', movie: '영화 게시물', '방송': '방송 게시물', '17금': '17금 게시물', '19금': '19금 게시물', '주번나': '주번나 게시물' };
   const label = document.getElementById('mlbSecLabel');
   if (label) label.textContent = labels[cat] || '전체 게시물';
   renderMlbGrid();
@@ -934,6 +937,9 @@ function renderMlbGrid() {
     if (curMlbCategory !== 'all') {
       if (curMlbCategory === 'movie' && p.tag !== 'movie') return false;
       if (curMlbCategory === '방송' && p.tag !== '방송') return false;
+      if (curMlbCategory === '17금'  && p.tag !== '17금') return false;
+      if (curMlbCategory === '19금'  && p.tag !== '19금') return false;
+      if (curMlbCategory === '주번나' && p.tag !== '주번나') return false;
     }
     // 검색 필터
     if (q && !p.title.toLowerCase().includes(q) && !(p.author||'').toLowerCase().includes(q)) return false;
@@ -994,7 +1000,7 @@ function buildMlbCard(p) {
       ${thumbHtml}
       <div class="play-ov"><div class="play-circle" style="background:linear-gradient(135deg,var(--mlb),#2563eb);"><div class="play-tri"></div></div></div>
       <span class="platform-badge badge-mlb">MLB</span>
-      <span style="position:absolute;top:8px;left:52px;font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:rgba(0,0,0,0.6);color:#fff;">${p.tag==='방송'?'방송':'영화'}</span>
+      <span style="position:absolute;top:8px;left:52px;font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:rgba(0,0,0,0.6);color:#fff; ${['17금','19금','주번나'].includes(p.tag) ? 'background:#ff3366;color:#fff;' : ''}">${p.tag === '방송' ? '방송' : (['17금','19금','주번나'].includes(p.tag) ? p.tag : '영화')}</span>
       <button class="like-btn${liked?' liked':''}" onclick="toggleMlbLike(event,'${p.post_id}')">♥ ${p.like_count||0}</button>
       <button class="bm-btn${saved?' saved':''}" onclick="toggleMlbBm(event,'${p.post_id}')">☆</button>
     </div>
