@@ -16,6 +16,18 @@
   --glow: rgba(255,107,107,0.12);
   --yt: #ff4444; --mlb: #ff6b35;
 }
+/* PASSWORD GATE */
+.gate-bg { position: fixed; inset: 0; background: var(--bg); z-index: 9999; display: flex; align-items: center; justify-content: center; }
+.gate-box { background: var(--bg2); border: 1px solid var(--border2); border-radius: 16px; padding: 2.5rem 2rem; width: 100%; max-width: 360px; text-align: center; }
+.gate-logo { font-family: 'Bebas Neue'; font-size: 32px; letter-spacing: 6px; margin-bottom: 0.5rem; }
+.gate-logo .g-ai { color: #fff; }
+.gate-logo .g-gt { color: var(--accent); }
+.gate-desc { font-size: 13px; color: var(--muted); margin-bottom: 1.5rem; line-height: 1.6; }
+.gate-input { width: 100%; background: var(--bg3); border: 1px solid var(--border2); border-radius: 10px; padding: 12px 16px; color: var(--text); font-size: 15px; font-family: 'Noto Sans KR'; outline: none; text-align: center; letter-spacing: 4px; margin-bottom: 10px; }
+.gate-input:focus { border-color: var(--accent); }
+.gate-btn { width: 100%; padding: 12px; border-radius: 10px; border: none; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; font-size: 14px; font-weight: 700; cursor: pointer; font-family: 'Noto Sans KR'; transition: opacity 0.15s; }
+.gate-btn:hover { opacity: 0.85; }
+.gate-err { font-size: 12px; color: #f87171; margin-top: 8px; min-height: 18px; }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { background: var(--bg); color: var(--text); font-family: 'Noto Sans KR', sans-serif; min-height: 100vh; overflow-x: hidden; }
 body::before { content: ''; position: fixed; inset: 0; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.025) 2px, rgba(0,0,0,0.025) 4px); pointer-events: none; z-index: 0; }
@@ -184,7 +196,17 @@ footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center;
 </head>
 <body>
 
-<nav>
+<!-- PASSWORD GATE -->
+<div class="gate-bg" id="passwordGate">
+  <div class="gate-box">
+    <div class="gate-logo"><span class="g-ai">AI </span><span class="g-gt">GATHERING</span></div>
+    <div class="gate-desc">초대된 분만 입장할 수 있습니다.<br>비밀번호를 입력해주세요.</div>
+    <input class="gate-input" type="password" id="gateInput" placeholder="••••••" maxlength="20"
+      onkeydown="if(event.key==='Enter')checkGate()">
+    <button class="gate-btn" onclick="checkGate()">입장하기</button>
+    <div class="gate-err" id="gateErr"></div>
+  </div>
+</div>
   <span class="logo" onclick="showPlatform('mlb')"><span class="logo-ai">AI </span><span class="logo-gathering">GATHERING</span></span>
   <div class="nav-platform-tabs">
     <div class="nav-ptab active-mlb" id="ptab-mlb" onclick="showPlatform('mlb',this)">
@@ -324,8 +346,16 @@ footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center;
         <input type="password" id="pwCurrent" placeholder="현재 비밀번호" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;font-family:'Noto Sans KR';outline:none;">
         <input type="password" id="pwNew" placeholder="새 비밀번호 (6자 이상)" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;font-family:'Noto Sans KR';outline:none;">
         <input type="password" id="pwConfirm" placeholder="새 비밀번호 확인" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;font-family:'Noto Sans KR';outline:none;">
-        <button onclick="changePassword()" style="font-family:'Noto Sans KR';font-size:12px;padding:8px 18px;border-radius:8px;border:none;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-weight:700;cursor:pointer;align-self:flex-start;">비밀번호 변경</button>
+        <button onclick="changePassword()" style="font-family:'Noto Sans KR';font-size:12px;padding:8px 18px;border-radius:8px;border:none;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-weight:700;cursor:pointer;align-self:flex-start;">관리자 비밀번호 변경</button>
         <div id="pwStatus" style="font-size:12px;display:none;"></div>
+      </div>
+
+      <div class="admin-hd">사이트 입장 비밀번호 변경</div>
+      <div style="margin-bottom:2rem;max-width:320px;display:flex;flex-direction:column;gap:8px;">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">현재 입장 비밀번호: <span id="currentGatePwDisplay" style="color:var(--accent);font-weight:700;"></span></div>
+        <input type="text" id="newGatePw" placeholder="새 입장 비밀번호" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;font-family:'Noto Sans KR';outline:none;">
+        <button onclick="changeGatePw()" style="font-family:'Noto Sans KR';font-size:12px;padding:8px 18px;border-radius:8px;border:none;background:var(--glow);border:1px solid var(--border2);color:var(--accent);font-weight:700;cursor:pointer;align-self:flex-start;">입장 비밀번호 변경</button>
+        <div id="gatePwStatus" style="font-size:12px;display:none;"></div>
       </div>
 
       <div class="admin-hd">MLB파크 게시물 관리</div>
@@ -395,6 +425,36 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 const { createClient } = supabase;
 const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ── 비밀번호 게이트 ──
+const GATE_KEY = 'aigathering_auth';
+const DEFAULT_GATE_PW = 'aigather2024'; // 기본 비밀번호
+
+function getGatePw() {
+  return localStorage.getItem('aigathering_gate_pw') || DEFAULT_GATE_PW;
+}
+
+function checkGate() {
+  const input = document.getElementById('gateInput').value;
+  const errEl = document.getElementById('gateErr');
+  if (input === getGatePw()) {
+    sessionStorage.setItem(GATE_KEY, '1');
+    document.getElementById('passwordGate').style.display = 'none';
+    errEl.textContent = '';
+  } else {
+    errEl.textContent = '비밀번호가 틀렸습니다.';
+    document.getElementById('gateInput').value = '';
+    document.getElementById('gateInput').focus();
+  }
+}
+
+// 이미 인증된 경우 게이트 숨기기
+if (sessionStorage.getItem(GATE_KEY) === '1') {
+  document.getElementById('passwordGate').style.display = 'none';
+} else {
+  // 게이트가 열려있으면 나머지 초기화 막기
+  document.getElementById('gateInput').focus();
+}
 
 // 주제별 키워드 정의
 const TOPICS = {
@@ -772,8 +832,27 @@ function showAdminContent(email) {
   document.getElementById('adminLoginArea').style.display='none';
   document.getElementById('adminContent').style.display='block';
   document.getElementById('adminEmailLabel').textContent=email||'';
+  // 현재 입장 비밀번호 표시
+  const el = document.getElementById('currentGatePwDisplay');
+  if (el) el.textContent = getGatePw();
   fillApiKeyInput(); renderAdmTable(); renderTopicKwManager(); renderMlbAdmTable();
   toast('관리자로 로그인됨');
+}
+
+function changeGatePw() {
+  const newPw = document.getElementById('newGatePw').value.trim();
+  const st = document.getElementById('gatePwStatus');
+  if (!newPw || newPw.length < 4) {
+    st.textContent = '4자 이상 입력해주세요.'; st.style.color='#f87171'; st.style.display='block'; return;
+  }
+  localStorage.setItem('aigathering_gate_pw', newPw);
+  const el = document.getElementById('currentGatePwDisplay');
+  if (el) el.textContent = newPw;
+  document.getElementById('newGatePw').value = '';
+  st.textContent = '✓ 입장 비밀번호가 변경됐습니다: ' + newPw;
+  st.style.color='#6ee7b7'; st.style.display='block';
+  setTimeout(() => st.style.display='none', 3000);
+  toast('입장 비밀번호 변경됨');
 }
 
 async function adminLogout() {
@@ -992,7 +1071,7 @@ function buildMlbCard(p) {
   const liked = mlbLikedIds.includes(p.post_id);
   const saved = mlbBookmarks.includes(p.post_id);
   const videoUrls = p.video_urls || [];
-  const mp4Videos = videoUrls.filter(u => u && !u.includes('youtube') && !u.includes('youtu.be') && !u.startsWith('iframe:'));
+  const mp4Videos = videoUrls.filter(u => u && !u.includes('youtube') && !u.includes('youtu.be') && !u.startsWith('iframe:') && !u.startsWith('xvideo:'));
   const ytVideos = videoUrls.filter(u => u && (u.includes('youtube') || u.includes('youtu.be')));
 
   // YouTube vid 추출
@@ -1120,7 +1199,8 @@ async function openMlbModal(postId) {
   const videoUrls = p.video_urls || [];
   const ytVideos = [...new Set(videoUrls.filter(u => u && (u.includes('youtube') || u.includes('youtu.be'))))];
   const iframeVideos = videoUrls.filter(u => u && u.startsWith('iframe:'));
-  const mp4Videos = [...new Set(videoUrls.filter(u => u && !u.includes('youtube') && !u.includes('youtu.be') && !u.startsWith('iframe:')))];
+  const xVideos = videoUrls.filter(u => u && u.startsWith('xvideo:'));
+  const mp4Videos = [...new Set(videoUrls.filter(u => u && !u.includes('youtube') && !u.includes('youtu.be') && !u.startsWith('iframe:') && !u.startsWith('xvideo:')))];
 
   // content_html 원본 순서대로 렌더링
   if (p.content_html) {
@@ -1146,8 +1226,21 @@ async function openMlbModal(postId) {
       }
     });
 
-    // embed 태그 → 제거 (트위터 등 외부 embed는 보안상 제거)
-    body.querySelectorAll('embed').forEach(el => el.remove());
+    // embed 태그 → X 영상 iframe 처리
+    body.querySelectorAll('embed').forEach(embed => {
+      const src = embed.getAttribute('src') || '';
+      if (src.includes('twitter.com/i/videos') || src.includes('x.com/i/videos')) {
+        const fullSrc = src.startsWith('//') ? 'https:' + src : src;
+        const iframe = document.createElement('iframe');
+        iframe.setAttribute('src', fullSrc);
+        iframe.setAttribute('allowfullscreen', '');
+        iframe.setAttribute('scrolling', 'no');
+        iframe.style.cssText = 'width:100%;aspect-ratio:16/9;border:none;border-radius:8px;display:block;margin-bottom:10px;';
+        embed.parentNode.replaceChild(iframe, embed);
+      } else {
+        embed.remove();
+      }
+    });
 
     // iframe → YouTube embed 처리, 그 외는 제거
     body.querySelectorAll('iframe').forEach(f => {
@@ -1205,6 +1298,15 @@ async function openMlbModal(postId) {
           <video controls preload="metadata" style="width:100%;border-radius:8px;background:#000;display:block;">
             <source src="${proxyUrl}" type="video/mp4">
           </video>
+        </div>`;
+      }).join('');
+    }
+    if (xVideos.length > 0) {
+      contentHtml += xVideos.map(u => {
+        const src = u.replace('xvideo:', '');
+        return `<div style="aspect-ratio:16/9;margin-bottom:10px;border-radius:8px;overflow:hidden;background:#000;">
+          <iframe src="${src}" allowfullscreen scrolling="no"
+            style="width:100%;height:100%;border:none;display:block;"></iframe>
         </div>`;
       }).join('');
     }
