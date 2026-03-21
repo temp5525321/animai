@@ -33,16 +33,16 @@ body { background: var(--bg); color: var(--text); font-family: 'Noto Sans KR', s
 body::before { content: ''; position: fixed; inset: 0; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.025) 2px, rgba(0,0,0,0.025) 4px); pointer-events: none; z-index: 0; }
 
 /* NAV */
-nav { position: sticky; top: 0; z-index: 100; background: rgba(15,8,8,0.95); backdrop-filter: blur(16px); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 1.5rem; height: 56px; gap: 1rem; overflow: hidden; }
-.logo { font-family: 'Bebas Neue'; font-size: 26px; letter-spacing: 5px; cursor: pointer; flex-shrink: 0; white-space: nowrap; }
+nav { position: sticky; top: 0; z-index: 100; background: rgba(15,8,8,0.95); backdrop-filter: blur(16px); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 1.5rem; height: 56px; gap: 0.75rem; flex-wrap: nowrap; overflow: hidden; }
+.logo { font-family: 'Bebas Neue'; font-size: 24px; letter-spacing: 4px; cursor: pointer; flex-shrink: 0; white-space: nowrap; }
 .logo-ai { color: #fff; }
 .logo-gathering { background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-.nav-platform-tabs { display: flex; gap: 4px; }
-.nav-ptab { font-size: 12px; padding: 5px 10px; color: var(--muted); cursor: pointer; border-radius: 6px; transition: all 0.15s; border: 1px solid transparent; font-family: 'Noto Sans KR'; display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+.nav-platform-tabs { display: flex; gap: 4px; flex-shrink: 0; }
+.nav-ptab { font-size: 12px; padding: 5px 10px; color: var(--muted); cursor: pointer; border-radius: 6px; transition: all 0.15s; border: 1px solid transparent; font-family: 'Noto Sans KR'; display: flex; align-items: center; gap: 5px; white-space: nowrap; flex-shrink: 0; }
 .nav-ptab:hover { color: var(--text); background: var(--glow); }
 .nav-ptab.active-mlb { color: #4a9eff; background: rgba(74,158,255,0.08); border-color: rgba(74,158,255,0.2); }
 .nav-ptab.active-bm { color: var(--accent); background: var(--glow); border-color: var(--border2); }
-.nav-right { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+.nav-right { margin-left: auto; display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
 .btn-primary { font-family: 'Noto Sans KR'; font-size: 12px; padding: 7px 16px; border-radius: 6px; border: none; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; font-weight: 700; cursor: pointer; white-space: nowrap; }
 .btn-primary:hover { opacity: 0.85; }
 
@@ -207,6 +207,8 @@ footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center;
     <div class="gate-err" id="gateErr"></div>
   </div>
 </div>
+
+<nav>
   <span class="logo" onclick="showPlatform('mlb')"><span class="logo-ai">AI </span><span class="logo-gathering">GATHERING</span></span>
   <div class="nav-platform-tabs">
     <div class="nav-ptab active-mlb" id="ptab-mlb" onclick="showPlatform('mlb',this)">
@@ -428,16 +430,28 @@ const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ── 비밀번호 게이트 ──
 const GATE_KEY = 'aigathering_auth';
-const DEFAULT_GATE_PW = 'aigather2024'; // 기본 비밀번호
+let gatePw = null; // Supabase에서 로드
 
-function getGatePw() {
-  return localStorage.getItem('aigathering_gate_pw') || DEFAULT_GATE_PW;
+// Supabase에서 비밀번호 로드
+async function loadGatePw() {
+  try {
+    const { data } = await db.from('site_config').select('value').eq('key','gate_password').single();
+    if (data) gatePw = data.value;
+  } catch(e) {
+    gatePw = 'aigather2024'; // 실패 시 기본값
+  }
 }
 
-function checkGate() {
+async function checkGate() {
   const input = document.getElementById('gateInput').value;
   const errEl = document.getElementById('gateErr');
-  if (input === getGatePw()) {
+  const btn = document.querySelector('.gate-btn');
+  btn.textContent = '확인 중...';
+  btn.disabled = true;
+  if (!gatePw) await loadGatePw();
+  btn.textContent = '입장하기';
+  btn.disabled = false;
+  if (input === gatePw) {
     sessionStorage.setItem(GATE_KEY, '1');
     document.getElementById('passwordGate').style.display = 'none';
     errEl.textContent = '';
@@ -449,10 +463,12 @@ function checkGate() {
   }
 }
 
-// 세션 내 인증 확인 (탭 닫으면 초기화)
+// 세션 내 인증 확인
 if (sessionStorage.getItem(GATE_KEY) === '1') {
   document.getElementById('passwordGate').style.display = 'none';
 } else {
+  // 미리 비밀번호 로드
+  loadGatePw();
   document.getElementById('gateInput').focus();
 }
 
@@ -469,7 +485,7 @@ const TOPICS = {
 
 let videos = [];
 let curTopic = 'all';
-let curPlatform = 'youtube';
+let curPlatform = 'mlb';
 let curModalId = null;
 let bookmarks = [];
 let likedYtIds = [];
@@ -827,33 +843,39 @@ async function adminLogin() {
   showAdminContent(data.user.email);
 }
 
-function showAdminContent(email) {
+async function showAdminContent(email) {
   admLoggedIn=true;
   document.getElementById('adminLoginArea').style.display='none';
   document.getElementById('adminContent').style.display='block';
   document.getElementById('adminEmailLabel').textContent=email||'';
-  // 현재 입장 비밀번호 표시
+  // Supabase에서 현재 입장 비밀번호 표시
   const el = document.getElementById('currentGatePwDisplay');
-  if (el) el.textContent = getGatePw();
+  if (el) {
+    const { data } = await db.from('site_config').select('value').eq('key','gate_password').single();
+    el.textContent = data?.value || '(불러오기 실패)';
+  }
   fillApiKeyInput(); renderAdmTable(); renderTopicKwManager(); renderMlbAdmTable();
   toast('관리자로 로그인됨');
 }
 
-function changeGatePw() {
+async function changeGatePw() {
   const newPw = document.getElementById('newGatePw').value.trim();
   const st = document.getElementById('gatePwStatus');
   if (!newPw || newPw.length < 4) {
     st.textContent = '4자 이상 입력해주세요.'; st.style.color='#f87171'; st.style.display='block'; return;
   }
-  localStorage.setItem('aigathering_gate_pw', newPw);
-  sessionStorage.removeItem(GATE_KEY);
+  const { error } = await db.from('site_config').update({ value: newPw }).eq('key', 'gate_password');
+  if (error) {
+    st.textContent = '저장 오류: ' + error.message; st.style.color='#f87171'; st.style.display='block'; return;
+  }
+  gatePw = newPw;
   const el = document.getElementById('currentGatePwDisplay');
   if (el) el.textContent = newPw;
   document.getElementById('newGatePw').value = '';
-  st.textContent = '✓ 변경됨: ' + newPw + ' (지인들에게 공유하세요)';
+  st.textContent = '✓ 변경됨: ' + newPw + ' (모든 방문자에게 즉시 적용)';
   st.style.color='#6ee7b7'; st.style.display='block';
-  setTimeout(() => st.style.display='none', 5000);
-  toast('입장 비밀번호 변경됨');
+  setTimeout(() => st.style.display='none', 4000);
+  toast('입장 비밀번호 변경됨: ' + newPw);
 }
 
 async function adminLogout() {
