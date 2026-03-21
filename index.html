@@ -37,7 +37,7 @@ nav { position: sticky; top: 0; z-index: 100; background: rgba(15,8,8,0.95); bac
 /* HERO */
 .hero { padding: 2.5rem 2rem 1.5rem; position: relative; z-index: 1; }
 .hero::after { content: ''; position: absolute; top: 0; right: 0; width: 50%; height: 100%; background: radial-gradient(ellipse at 80% 40%, rgba(167,139,250,0.07) 0%, transparent 65%); pointer-events: none; }
-.hero h1 { font-family: 'Bebas Neue'; font-size: clamp(48px, 8vw, 96px); letter-spacing: 3px; line-height: 0.88; }
+.hero h1 { font-family: 'Bebas Neue'; font-size: clamp(36px, 6vw, 72px); letter-spacing: 4px; line-height: 1; }
 .t1 { color: var(--text); }
 .t2 { background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 .hero p { margin-top: 1rem; color: var(--muted); font-size: 14px; max-width: 500px; line-height: 1.7; }
@@ -191,14 +191,14 @@ footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center;
       <svg class="nav-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><text x="12" y="16" text-anchor="middle" font-size="9" font-weight="900" font-family="Arial" fill="currentColor">MLB</text></svg>
       <span>MLB파크</span>
     </div>
-    <div class="nav-ptab" id="ptab-bookmarks" onclick="showPlatform('bookmarks',this)">
-      <svg class="nav-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
-      <span>북마크</span>
-    </div>
   </div>
   <div class="nav-right">
     <div id="userArea">
       <button class="btn-primary" onclick="googleLogin()" style="background:transparent;border:1px solid var(--border2);color:var(--muted);">구글 로그인</button>
+    </div>
+    <div class="nav-ptab" id="ptab-bookmarks" onclick="showPlatform('bookmarks',this)" style="margin-left:4px;">
+      <svg class="nav-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+      <span>북마크</span>
     </div>
   </div>
 </nav>
@@ -206,7 +206,7 @@ footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center;
 <!-- MLB파크 PAGE -->
 <div class="page active" id="page-mlb">
   <div class="hero">
-    <h1><span class="t1" style="-webkit-text-fill-color:#fff;color:#fff;">AI</span><br><span class="t2">GATHERING</span></h1>
+    <h1><span class="t1" style="-webkit-text-fill-color:#fff;color:#fff;">AI </span><span class="t2">GATHERING</span></h1>
     <p>국내 유명 커뮤니티 AI영상 게시물 모음.</p>
     <div class="stats-row">
       <div class="stat"><div class="stat-num" id="mlbTotalCount">0</div><div class="stat-label">총 게시물</div></div>
@@ -384,10 +384,9 @@ footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center;
 
 <div class="toast" id="toast"></div>
 
-<footer style="position:relative;">
+<footer>
   <div style="font-family:'Bebas Neue';font-size:22px;letter-spacing:4px;margin-bottom:4px;"><span style="color:#fff;">AI </span><span style="background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;">GATHERING</span></div>
-  국내 유명 커뮤니티 AI영상 게시물 모음
-  <button onclick="showPlatform('admin')" style="position:absolute;right:1rem;bottom:0.5rem;background:transparent;border:none;color:transparent;cursor:default;font-size:12px;padding:4px 8px;user-select:none;" onmouseenter="this.style.cursor='pointer'" onmouseleave="this.style.cursor='default'">·</button>
+  <div>국내 유명 커뮤니티 AI영상 게시물 모음<button onclick="showPlatform('admin')" style="background:transparent;border:none;color:transparent;cursor:default;font-size:12px;padding:2px 6px;user-select:none;" onmouseenter="this.style.cursor='pointer'" onmouseleave="this.style.cursor='default'">·</button></div>
 </footer>
 
 <script>
@@ -1118,55 +1117,86 @@ async function openMlbModal(postId) {
   const iframeVideos = videoUrls.filter(u => u && u.startsWith('iframe:'));
   const mp4Videos = [...new Set(videoUrls.filter(u => u && !u.includes('youtube') && !u.includes('youtu.be') && !u.startsWith('iframe:')))];
 
-  // YouTube 영상 embed
-  if (ytVideos.length > 0) {
-    contentHtml += ytVideos.map(url => {
+  // content_html 원본 순서대로 렌더링
+  if (p.content_html) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(p.content_html, 'text/html');
+    const body = doc.body;
+
+    // 불필요한 요소 제거
+    body.querySelectorAll('script, style, .recommend_area, .share_area, .report_area, input, button').forEach(el => el.remove());
+
+    // video 태그 → 프록시 처리
+    body.querySelectorAll('video').forEach(v => {
+      const src = v.querySelector('source')?.getAttribute('src') || v.getAttribute('src') || v.getAttribute('data-src') || '';
+      if (src) {
+        const fullSrc = src.startsWith('http') ? src : 'https://mlbpark.donga.com' + src;
+        const proxyUrl = `/api/proxy?url=${encodeURIComponent(fullSrc)}`;
+        v.style.cssText = 'width:100%;border-radius:8px;background:#000;display:block;margin-bottom:10px;';
+        v.setAttribute('controls', '');
+        v.setAttribute('preload', 'metadata');
+        const source = v.querySelector('source');
+        if (source) source.setAttribute('src', proxyUrl);
+        else v.setAttribute('src', proxyUrl);
+      }
+    });
+
+    // iframe → YouTube embed 처리
+    body.querySelectorAll('iframe').forEach(f => {
+      const src = f.getAttribute('src') || '';
       let vid = '';
-      if (url.includes('embed/')) vid = url.split('embed/')[1].split('?')[0];
-      else if (url.includes('v=')) vid = url.split('v=')[1].split('&')[0];
-      else if (url.includes('youtu.be/')) vid = url.split('youtu.be/')[1].split('?')[0];
-      if (!vid) return '';
-      return `<div style="aspect-ratio:16/9;margin-bottom:10px;border-radius:8px;overflow:hidden;background:#000;">
-        <iframe src="https://www.youtube.com/embed/${vid}?rel=0" 
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-          allowfullscreen style="width:100%;height:100%;border:none;display:block;"></iframe>
-      </div>
-      <a href="https://www.youtube.com/watch?v=${vid}" target="_blank" style="display:block;text-align:center;margin-top:-4px;margin-bottom:10px;font-size:12px;color:var(--accent);text-decoration:none;">▶ YouTube에서 보기 ↗</a>`;
-    }).filter(Boolean).join('');
+      if (src.includes('youtube') || src.includes('youtu.be')) {
+        if (src.includes('embed/')) vid = src.split('embed/')[1].split('?')[0];
+        else if (src.includes('v=')) vid = src.split('v=')[1].split('&')[0];
+        if (vid) f.setAttribute('src', `https://www.youtube.com/embed/${vid}?rel=0`);
+        f.setAttribute('allowfullscreen', '');
+        f.style.cssText = 'width:100%;aspect-ratio:16/9;border:none;border-radius:8px;display:block;margin-bottom:10px;';
+      }
+    });
+
+    // 이미지 스타일 정리
+    body.querySelectorAll('img').forEach(img => {
+      img.style.cssText = 'max-width:100%;border-radius:8px;margin-bottom:8px;display:block;';
+      img.setAttribute('loading', 'lazy');
+      img.setAttribute('onerror', "this.style.display='none'");
+    });
+
+    contentHtml = body.innerHTML;
+  } else {
+    // content_html 없을 때 기존 방식
+    if (ytVideos.length > 0) {
+      contentHtml += ytVideos.map(url => {
+        let vid = '';
+        if (url.includes('embed/')) vid = url.split('embed/')[1].split('?')[0];
+        else if (url.includes('v=')) vid = url.split('v=')[1].split('&')[0];
+        else if (url.includes('youtu.be/')) vid = url.split('youtu.be/')[1].split('?')[0];
+        if (!vid) return '';
+        return `<div style="aspect-ratio:16/9;margin-bottom:10px;border-radius:8px;overflow:hidden;background:#000;">
+          <iframe src="https://www.youtube.com/embed/${vid}?rel=0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowfullscreen style="width:100%;height:100%;border:none;display:block;"></iframe>
+        </div>`;
+      }).filter(Boolean).join('');
+    }
+    if (mp4Videos.length > 0) {
+      contentHtml += mp4Videos.map(url => {
+        const isMlb = url.includes('donga.com') || url.includes('tpzlfh.uk');
+        const proxyUrl = isMlb ? `/api/proxy?url=${encodeURIComponent(url)}` : url;
+        return `<div style="margin-bottom:10px;">
+          <video controls preload="metadata" style="width:100%;border-radius:8px;background:#000;display:block;">
+            <source src="${proxyUrl}" type="video/mp4">
+          </video>
+        </div>`;
+      }).join('');
+    }
+    const images = p.images || [];
+    if (images.length > 0) {
+      contentHtml += images.map(src =>
+        `<img src="${src}" alt="" style="width:100%;border-radius:8px;margin-bottom:8px;max-height:500px;object-fit:contain;" onerror="this.style.display='none'">`
+      ).join('');
+    }
   }
 
-  // 외부 iframe 영상
-  if (iframeVideos.length > 0) {
-    contentHtml += iframeVideos.map(u => {
-      const src = u.replace('iframe:', '');
-      return `<div style="aspect-ratio:16/9;margin-bottom:10px;border-radius:8px;overflow:hidden;background:#000;">
-        <iframe src="${src}" allowfullscreen style="width:100%;height:100%;border:none;display:block;"></iframe>
-      </div>`;
-    }).join('');
-  }
-
-  // mp4/video 파일 직접 재생 (프록시 경유)
-  if (mp4Videos.length > 0) {
-    contentHtml += mp4Videos.map(url => {
-      const isMlb = url.includes('mlbpark.donga.com') || url.includes('image.donga.com') || url.includes('simg.donga.com') || url.includes('donga.com') || url.includes('tpzlfh.uk');
-      const proxyUrl = isMlb ? `/api/proxy?url=${encodeURIComponent(url)}` : url;
-      return `<div style="margin-bottom:10px;">
-        <video controls preload="metadata" style="width:100%;border-radius:8px;background:#000;display:block;">
-          <source src="${proxyUrl}" type="video/mp4">
-        </video>
-      </div>`;
-    }).join('');
-  }
-
-  // 이미지들 표시 (직접 로드 - 프록시 제거)
-  const images = p.images || [];
-  if (images.length > 0) {
-    contentHtml += images.map(src =>
-      `<img src="${src}" alt="" style="width:100%;border-radius:8px;margin-bottom:8px;max-height:500px;object-fit:contain;" onerror="this.style.display='none'">`
-    ).join('');
-  }
-
-  // 아무것도 없으면 썸네일 직접 로드
   if (!contentHtml && p.thumb) {
     contentHtml = `<img src="${p.thumb}" alt="" style="width:100%;border-radius:8px;margin-bottom:8px;">`;
   }
