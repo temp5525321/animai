@@ -11,7 +11,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'URL parameter required' });
   }
 
-  const allowedDomains = ['mlbpark.donga.com', 'image.donga.com', 'simg.donga.com', 'donga.com', 'tpzlfh.uk', 'mlbpark.tpzlfh.uk'];
+  const allowedDomains = ['mlbpark.donga.com', 'image.donga.com', 'simg.donga.com', 'donga.com', 'tpzlfh.uk', 'mlbpark.tpzlfh.uk', 'twitter.com', 'x.com', 'twimg.com', 'video.twimg.com', 'pbs.twimg.com'];
   let parsedUrl;
   try {
     parsedUrl = new URL(decodeURIComponent(url));
@@ -24,12 +24,16 @@ export default async function handler(req, res) {
     return res.status(403).json({ error: 'Domain not allowed' });
   }
 
+  // X/Twitter 영상 여부 판별
+  const isXVideo = parsedUrl.hostname.includes('twitter.com') || parsedUrl.hostname.includes('x.com') || parsedUrl.hostname.includes('twimg.com');
+
   try {
     const upstreamHeaders = {
-      'Referer': 'https://mlbpark.donga.com/',
+      'Referer': isXVideo ? 'https://twitter.com/' : 'https://mlbpark.donga.com/',
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
       'Accept': '*/*',
       'Accept-Language': 'ko-KR,ko;q=0.9',
+      'Origin': isXVideo ? 'https://twitter.com' : 'https://mlbpark.donga.com',
     };
 
     // Range 헤더 전달 (seek 지원)
