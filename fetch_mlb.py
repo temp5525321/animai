@@ -415,7 +415,7 @@ def main():
                 'url': p['url'],
                 'author': p['author'],
                 'tag': TAG_MAP.get(category, category),
-                'post_date': p.get('post_date'),
+                'post_date': p.get('post_date') or None,
                 'status': 'approved',
                 'created_at': datetime.now(KST).strftime('%Y-%m-%d %H:%M:%S+09')
             })
