@@ -1124,7 +1124,7 @@ async function openMlbModal(postId) {
     const body = doc.body;
 
     // 불필요한 요소 제거
-    body.querySelectorAll('script, style, .recommend_area, .share_area, .report_area, input, button').forEach(el => el.remove());
+    body.querySelectorAll('script, style, .recommend_area, .share_area, .report_area, .tool_cont, input, button').forEach(el => el.remove());
 
     // video 태그 → 프록시 처리
     body.querySelectorAll('video').forEach(v => {
@@ -1141,22 +1141,32 @@ async function openMlbModal(postId) {
       }
     });
 
-    // iframe → YouTube embed 처리
+    // embed 태그 → 제거 (트위터 등 외부 embed는 보안상 제거)
+    body.querySelectorAll('embed').forEach(el => el.remove());
+
+    // iframe → YouTube embed 처리, 그 외는 제거
     body.querySelectorAll('iframe').forEach(f => {
       const src = f.getAttribute('src') || '';
       let vid = '';
       if (src.includes('youtube') || src.includes('youtu.be')) {
         if (src.includes('embed/')) vid = src.split('embed/')[1].split('?')[0];
         else if (src.includes('v=')) vid = src.split('v=')[1].split('&')[0];
-        if (vid) f.setAttribute('src', `https://www.youtube.com/embed/${vid}?rel=0`);
-        f.setAttribute('allowfullscreen', '');
-        f.style.cssText = 'width:100%;aspect-ratio:16/9;border:none;border-radius:8px;display:block;margin-bottom:10px;';
+        if (vid) {
+          f.setAttribute('src', `https://www.youtube.com/embed/${vid}?rel=0`);
+          f.setAttribute('allowfullscreen', '');
+          f.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture');
+          f.style.cssText = 'width:100%;aspect-ratio:16/9;border:none;border-radius:8px;display:block;margin-bottom:10px;';
+        } else {
+          f.remove();
+        }
+      } else {
+        f.remove();
       }
     });
 
-    // 이미지 스타일 정리
+    // 이미지 스타일 정리 (width:100% 명시)
     body.querySelectorAll('img').forEach(img => {
-      img.style.cssText = 'max-width:100%;border-radius:8px;margin-bottom:8px;display:block;';
+      img.style.cssText = 'width:100%;max-width:100%;border-radius:8px;margin-bottom:8px;display:block;height:auto;';
       img.setAttribute('loading', 'lazy');
       img.setAttribute('onerror', "this.style.display='none'");
     });
