@@ -62,14 +62,14 @@ def get_existing_post_ids():
     return set(item['post_id'] for item in data)
 
 def get_latest_post_date():
-    """Supabase에서 가장 최근 저장된 게시물 날짜 조회"""
+    """Supabase에서 가장 최근 게시물의 post_date 조회"""
     res = requests.get(
-        f'{SUPABASE_URL}/rest/v1/mlb_posts?select=created_at&order=created_at.desc&limit=1',
+        f'{SUPABASE_URL}/rest/v1/mlb_posts?select=post_date&order=post_date.desc&limit=1',
         headers=HEADERS
     )
     data = res.json()
-    if data:
-        date_str = data[0]['created_at'][:10]
+    if data and data[0].get('post_date'):
+        date_str = data[0]['post_date'][:10]
         return datetime.strptime(date_str, '%Y-%m-%d').replace(tzinfo=KST)
     return None
 
@@ -103,7 +103,7 @@ def fetch_posts(session, cutoff_date):
                     'b': 'bullpen',
                     'search_select2': 'spf',
                     'query': category,
-                    'search_select3': 'sct',
+                    'search_select3': 'sfl',
                     'subquery': keyword,
                     'p': page
                 }
@@ -415,6 +415,7 @@ def main():
                 'url': p['url'],
                 'author': p['author'],
                 'tag': TAG_MAP.get(category, category),
+                'post_date': p.get('post_date'),
                 'status': 'approved',
                 'created_at': datetime.now(KST).strftime('%Y-%m-%d %H:%M:%S+09')
             })
