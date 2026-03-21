@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AIGATHERING — AI 콘텐츠 큐레이션 허브</title>
+<title>AI GATHERING — AI 콘텐츠 큐레이션 허브</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -184,7 +184,7 @@ footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center;
 <body>
 
 <nav>
-  <span class="logo" onclick="showPlatform('mlb')">AIGATHERING</span>
+  <span class="logo" onclick="showPlatform('mlb')">AI GATHERING</span>
   <div class="nav-platform-tabs">
     <div class="nav-ptab active-mlb" id="ptab-mlb" onclick="showPlatform('mlb',this)">
       <svg class="nav-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><text x="12" y="16" text-anchor="middle" font-size="9" font-weight="900" font-family="Arial" fill="currentColor">MLB</text></svg>
@@ -205,7 +205,7 @@ footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center;
 <!-- MLB파크 PAGE -->
 <div class="page active" id="page-mlb">
   <div class="hero">
-    <h1><span class="t1">AI</span><br><span class="t2">PULSE</span></h1>
+    <h1><span class="t1">AI</span><br><span class="t2">GATHERING</span></h1>
     <p>국내 유명 커뮤니티 AI영상 게시물 모음.</p>
     <div class="stats-row">
       <div class="stat"><div class="stat-num" id="mlbTotalCount">0</div><div class="stat-label">총 게시물</div></div>
@@ -1040,14 +1040,17 @@ async function openMlbModal(postId) {
   let contentHtml = '';
 
   const videoUrls = p.video_urls || [];
-  const ytVideos = [...new Set(videoUrls.filter(u => u && u.includes('youtube.com/embed/')))];
+  const ytVideos = [...new Set(videoUrls.filter(u => u && (u.includes('youtube') || u.includes('youtu.be'))))];
   const iframeVideos = videoUrls.filter(u => u && u.startsWith('iframe:'));
   const mp4Videos = [...new Set(videoUrls.filter(u => u && !u.includes('youtube') && !u.includes('youtu.be') && !u.startsWith('iframe:')))];
 
   // YouTube 영상 embed
   if (ytVideos.length > 0) {
     contentHtml += ytVideos.map(url => {
-      const vid = url.includes('embed/') ? url.split('embed/')[1].split('?')[0] : '';
+      let vid = '';
+      if (url.includes('embed/')) vid = url.split('embed/')[1].split('?')[0];
+      else if (url.includes('v=')) vid = url.split('v=')[1].split('&')[0];
+      else if (url.includes('youtu.be/')) vid = url.split('youtu.be/')[1].split('?')[0];
       if (!vid) return '';
       return `<div style="aspect-ratio:16/9;margin-bottom:10px;border-radius:8px;overflow:hidden;background:#000;">
         <iframe src="https://www.youtube.com/embed/${vid}?rel=0" 

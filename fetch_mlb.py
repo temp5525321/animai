@@ -310,14 +310,13 @@ def fetch_post_detail(session, post):
                     unique_urls.append(u)
             post['video_urls'] = unique_urls[:5]
 
-            # YouTube 영상이 있으면 썸네일 추출
-            if not post.get('thumb'):
-                for u in unique_urls:
-                    vid = ''
-                    if 'embed/' in u: vid = u.split('embed/')[1].split('?')[0]
-                    if vid:
-                        post['thumb'] = f'https://img.youtube.com/vi/{vid}/mqdefault.jpg'
-                        break
+            # YouTube 영상이 있으면 썸네일 추출 (항상 덮어씌움)
+            for u in unique_urls:
+                vid = ''
+                if 'embed/' in u: vid = u.split('embed/')[1].split('?')[0]
+                if vid:
+                    post['thumb'] = f'https://img.youtube.com/vi/{vid}/mqdefault.jpg'
+                    break
 
             print(f'  상세: 이미지 {len(images)}개, 영상 {len(unique_urls)}개, 요약 {len(text)}자')
 
