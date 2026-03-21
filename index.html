@@ -1169,8 +1169,12 @@ async function openMlbModal(postId) {
       }
     });
 
-    // 이미지 스타일 정리 (width:100% 명시)
+    // 이미지 스타일 정리 + 프록시 적용
     body.querySelectorAll('img').forEach(img => {
+      const src = img.getAttribute('src') || '';
+      if (src && !src.startsWith('data:')) {
+        img.setAttribute('src', `/api/proxy?url=${encodeURIComponent(src)}`);
+      }
       img.style.cssText = 'width:100%;max-width:100%;border-radius:8px;margin-bottom:8px;display:block;height:auto;';
       img.setAttribute('loading', 'lazy');
       img.setAttribute('onerror', "this.style.display='none'");
