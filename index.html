@@ -252,7 +252,7 @@ footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center;
     <button class="modal-close" onclick="closeMlbModal()">✕</button>
     <div class="modal-body" style="padding-top:1.5rem;">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:1rem;">
-        <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:4px;background:var(--mlb);color:#fff;">MLB파크</span>
+        <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:4px;background:#4a9eff;color:#fff;">MLB파크</span>
         <span style="font-size:11px;color:var(--muted);" id="mlbModalTag"></span>
       </div>
       <div class="modal-title" id="mlbModalTitle"></div>
@@ -270,6 +270,7 @@ footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center;
         <button class="modal-btn" id="mlbBmBtn" onclick="mlbBm()">☆ 북마크</button>
         <button class="modal-btn" onclick="copyMlbLink()">🔗 링크 복사</button>
         <a class="modal-btn" id="mlbOriginalBtn" href="#" target="_blank" style="text-decoration:none;display:flex;align-items:center;">원본 보기 ↗</a>
+        <button class="modal-btn" id="mlbAdmDelBtn" onclick="mlbModalDel()" style="display:none;color:#f87171;border-color:rgba(248,113,113,0.3);">🗑 삭제</button>
       </div>
       <div class="comments-sec">
         <div class="comments-hd">댓글 <span id="mlbCmtCount">0</span></div>
@@ -383,10 +384,10 @@ footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center;
 
 <div class="toast" id="toast"></div>
 
-<footer>
+<footer style="position:relative;">
   <div style="font-family:'Bebas Neue';font-size:22px;letter-spacing:4px;margin-bottom:4px;"><span style="color:#fff;">AI </span><span style="background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;">GATHERING</span></div>
   국내 유명 커뮤니티 AI영상 게시물 모음
-  <button onclick="showPlatform('admin')" style="background:transparent;border:none;color:transparent;cursor:default;font-size:12px;padding:4px 8px;margin-left:4px;user-select:none;" onmouseenter="this.style.cursor='pointer'" onmouseleave="this.style.cursor='default'">·</button>
+  <button onclick="showPlatform('admin')" style="position:absolute;right:1rem;bottom:0.5rem;background:transparent;border:none;color:transparent;cursor:default;font-size:12px;padding:4px 8px;user-select:none;" onmouseenter="this.style.cursor='pointer'" onmouseleave="this.style.cursor='default'">·</button>
 </footer>
 
 <script>
@@ -881,14 +882,22 @@ function setMlbAdmFilter(f, el) {
 
 async function renderMlbAdmTable() {
   if (!admLoggedIn) return;
-  let query = db.from('mlb_posts').select('*').neq('status','deleted').order('post_date',{ascending:false});
+  let query = db.from('mlb_posts').select('*').neq('status','deleted').order('created_at',{ascending:false});
   if (mlbAdmFilter !== 'all') query = query.eq('tag', mlbAdmFilter);
-  const { data } = await query;
+  const { data, error } = await query;
+  if (error) { console.error('MLB 관리자 로드 오류:', error); return; }
   const list = data || [];
+  console.log('MLB 관리자 게시물 수:', list.length);
   const total = list.length;
-  const totalPages = Math.ceil(total / MLB_ADM_PER_PAGE);
+  const totalPages = Math.max(1, Math.ceil(total / MLB_ADM_PER_PAGE));
   const paged = list.slice((mlbAdmPage-1)*MLB_ADM_PER_PAGE, mlbAdmPage*MLB_ADM_PER_PAGE);
   const tagLabels = { movie:'영화', broadcast:'방송', cartoon:'만화', it:'IT', humor:'유머', jjal:'짤방', pmgl:'펌글', idol:'아이돌' };
+
+  if (!paged.length) {
+    document.getElementById('mlbAdmTbody').innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:1rem;">게시물이 없습니다.</td></tr>`;
+    document.getElementById('mlbAdmPagination').innerHTML = '';
+    return;
+  }
 
   document.getElementById('mlbAdmTbody').innerHTML = paged.map(p => `<tr>
     <td style="max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
@@ -921,6 +930,12 @@ async function mlbAdmDel(postId) {
   mlbPosts = mlbPosts.filter(p => p.post_id !== postId);
   renderMlbGrid(); updateMlbStats();
   renderMlbAdmTable(); toast('삭제됨 (재수집 방지)');
+}
+
+async function mlbModalDel() {
+  if (!curMlbModalId) return;
+  await mlbAdmDel(curMlbModalId);
+  closeMlbModal();
 }
 
 function toast(msg) {
@@ -1032,7 +1047,6 @@ function buildMlbCard(p) {
         <span class="card-ch"><span class="ch-dot" style="background:rgba(255,107,107,0.15);border-color:rgba(255,107,107,0.3);color:var(--accent);">${(p.author||'?')[0]}</span>${p.author||'익명'}</span>
         <span class="card-date">${(p.post_date||p.created_at||'').slice(0,10)}</span>
       </div>
-      ${admLoggedIn ? `<button onclick="event.stopPropagation();mlbAdmDel('${p.post_id}')" style="margin-top:8px;font-family:'Noto Sans KR';font-size:11px;padding:3px 10px;border-radius:4px;border:1px solid rgba(248,113,113,0.4);background:rgba(248,113,113,0.08);color:#f87171;cursor:pointer;width:100%;">🗑 삭제</button>` : ''}
     </div>
   </div>`;
 }
@@ -1079,9 +1093,10 @@ async function openMlbModal(postId) {
   const p = mlbPosts.find(p=>p.post_id===postId); if(!p) return;
   curMlbModalId = postId;
   document.getElementById('mlbModalTitle').textContent = p.title;
-  document.getElementById('mlbModalTag').textContent = '영화 · AI';
+  const tagLabels2 = { movie:'영화', broadcast:'방송', cartoon:'만화', it:'IT', humor:'유머', jjal:'짤방', pmgl:'펌글', idol:'아이돌' };
+  document.getElementById('mlbModalTag').textContent = (tagLabels2[p.tag]||p.tag||'') + ' · AI';
   document.getElementById('mlbModalAuthor').textContent = p.author||'익명';
-  document.getElementById('mlbModalDate').textContent = (p.created_at||'').slice(0,10);
+  document.getElementById('mlbModalDate').textContent = (p.post_date||p.created_at||'').slice(0,10);
   document.getElementById('mlbModalLink').href = p.url;
   document.getElementById('mlbOriginalBtn').href = p.url;
   document.getElementById('mlbLikeCnt').textContent = p.like_count||0;
@@ -1090,7 +1105,11 @@ async function openMlbModal(postId) {
   bb.classList.toggle('active', mlbBookmarks.includes(postId));
   bb.textContent = mlbBookmarks.includes(postId) ? '★ 북마크됨' : '☆ 북마크';
 
-  // 본문 콘텐츠 영역
+  // 관리자 삭제 버튼 표시
+  const delBtn = document.getElementById('mlbAdmDelBtn');
+  if (delBtn) delBtn.style.display = admLoggedIn ? '' : 'none';
+
+  // 본문 콘텐츠 영역 - content_html이 있으면 원본 레이아웃 그대로 표시
   const thumbEl = document.getElementById('mlbModalThumb');
   let contentHtml = '';
 
