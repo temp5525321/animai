@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AIPULSE — AI 콘텐츠 큐레이션 허브</title>
+<title>AIGATHERING — AI 콘텐츠 큐레이션 허브</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -184,7 +184,7 @@ footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center;
 <body>
 
 <nav>
-  <span class="logo" onclick="showPlatform('mlb')">AIPULSE</span>
+  <span class="logo" onclick="showPlatform('mlb')">AIGATHERING</span>
   <div class="nav-platform-tabs">
     <div class="nav-ptab active-mlb" id="ptab-mlb" onclick="showPlatform('mlb',this)">
       <svg class="nav-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><text x="12" y="16" text-anchor="middle" font-size="9" font-weight="900" font-family="Arial" fill="currentColor">MLB</text></svg>
@@ -206,7 +206,7 @@ footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center;
 <div class="page active" id="page-mlb">
   <div class="hero">
     <h1><span class="t1">AI</span><br><span class="t2">PULSE</span></h1>
-    <p>MLB파크 불펜에서 자동 수집한 AI 관련 게시물 모음.</p>
+    <p>국내 유명 커뮤니티 AI영상 게시물 모음.</p>
     <div class="stats-row">
       <div class="stat"><div class="stat-num" id="mlbTotalCount">0</div><div class="stat-label">총 게시물</div></div>
       <div class="stat"><div class="stat-num" id="mlbLikedCount">0</div><div class="stat-label">내 좋아요</div></div>
@@ -387,7 +387,7 @@ footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center;
 <div class="toast" id="toast"></div>
 
 <footer>
-  <div style="font-family:'Bebas Neue';font-size:22px;letter-spacing:4px;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px;">AIPULSE</div>
+  <div style="font-family:'Bebas Neue';font-size:22px;letter-spacing:4px;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px;">AIGATHERING</div>
   AI 콘텐츠 큐레이션 허브 · YouTube · MLB파크
   <button onclick="showPlatform('admin')" style="background:transparent;border:none;color:transparent;cursor:default;font-size:12px;padding:4px 8px;margin-left:4px;user-select:none;" onmouseenter="this.style.cursor='pointer'" onmouseleave="this.style.cursor='default'">·</button>
 </footer>
@@ -920,13 +920,15 @@ function buildMlbCard(p) {
   const saved = mlbBookmarks.includes(p.post_id);
   const videoUrls = p.video_urls || [];
   const mp4Videos = videoUrls.filter(u => u && !u.includes('youtube') && !u.includes('youtu.be') && !u.startsWith('iframe:'));
-  const ytVideos = videoUrls.filter(u => u && u.includes('youtube.com/embed/'));
+  const ytVideos = videoUrls.filter(u => u && (u.includes('youtube') || u.includes('youtu.be')));
 
   // YouTube vid 추출
   let ytVid = '';
   if (ytVideos.length > 0) {
     const u = ytVideos[0];
-    ytVid = u.includes('embed/') ? u.split('embed/')[1].split('?')[0] : '';
+    if (u.includes('embed/')) ytVid = u.split('embed/')[1].split('?')[0];
+    else if (u.includes('v=')) ytVid = u.split('v=')[1].split('&')[0];
+    else if (u.includes('youtu.be/')) ytVid = u.split('youtu.be/')[1].split('?')[0];
   }
 
   // 썸네일 결정: poster > YouTube 썸네일 > mp4 첫프레임 > 본문 첫 이미지 > 빈칸
@@ -952,7 +954,7 @@ function buildMlbCard(p) {
     thumbHtml = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px;">게시물</div>`;
   }
 
-  const tagLabels = { movie: '영화', broadcast: '방송', cartoon: '만화' };
+  const tagLabels = { movie: '영화', broadcast: '방송', cartoon: '만화', it: 'IT', humor: '유머', jjal: '짤방', pmgl: '펌글', idol: '아이돌' };
   const tagLabel = tagLabels[p.tag] || p.tag || '';
   const rawSummary = p.summary ? p.summary
     .replace(/Video\s*태그를\s*지원하지\s*않는\s*브라우저입니다\.?/gi, '')

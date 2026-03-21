@@ -400,8 +400,8 @@ def main():
             video_urls = p.get('video_urls', [])
             images = p.get('images', [])
 
-            if not video_urls and not images:
-                print(f'  영상/이미지 없음, 스킵: {p["title"][:30]}')
+            if not video_urls:
+                print(f'  영상 없음, 스킵: {p["title"][:30]}')
                 continue
 
             enriched.append({
