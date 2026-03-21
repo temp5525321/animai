@@ -238,15 +238,27 @@ def fetch_post_detail(session, post):
             # 본문 HTML 저장
             post['content_html'] = str(content_el)
 
-            # 이미지 URL 수집
+            # 이미지 URL 수집 (본문 영역)
             images = []
             for img in content_el.select('img'):
                 src = img.get('src', '') or img.get('data-src', '')
                 if src:
                     if not src.startswith('http'):
                         src = BASE_URL + src
-                    if not any(x in src for x in ['btn', 'ico', 'arrow', 'blank', 'loading']):
+                    if not any(x in src for x in ['btn', 'ico', 'arrow', 'blank', 'loading', 'profile', 'Profile', 'ugc/WWW']):
                         images.append(src)
+
+            # 본문 외부 이미지도 체크 (view_context 등)
+            view_ctx = soup.select_one('div.view_context') or soup.select_one('div.view_wrap')
+            if view_ctx:
+                for img in view_ctx.select('img'):
+                    src = img.get('src', '') or img.get('data-src', '')
+                    if src:
+                        if not src.startswith('http'):
+                            src = BASE_URL + src
+                        if src not in images and not any(x in src for x in ['btn', 'ico', 'arrow', 'blank', 'loading', 'profile', 'Profile', 'ugc/WWW']):
+                            images.append(src)
+
             post['images'] = images[:10]
 
             # 썸네일: 첫 번째 이미지
@@ -256,7 +268,7 @@ def fetch_post_detail(session, post):
             # 영상 URL 수집
             video_urls = []
 
-            # video 태그 - 여러 속성 체크
+            # video 태그 - 여러 속성 체크 (본문 영역)
             for v in content_el.select('video'):
                 src = (v.get('src', '') or v.get('data-src', '') or
                        v.get('data-video', '') or v.get('data-url', ''))
@@ -267,12 +279,33 @@ def fetch_post_detail(session, post):
                 if src:
                     if not src.startswith('http'):
                         src = BASE_URL + src
-                    # #t=0.01 같은 타임스탬프 제거
                     src = src.split('#')[0]
                     video_urls.append(src)
-                # poster를 항상 썸네일로 우선 사용
                 poster = v.get('poster', '')
                 if poster:
+                    if not poster.startswith('http'):
+                        poster = BASE_URL + poster
+                    post['thumb'] = poster
+
+            # 본문 영역 밖 video 태그도 체크 (MLB파크 자체 플레이어)
+            for v in soup.select('video'):
+                if content_el and v in content_el.descendants:
+                    continue  # 이미 처리됨
+                src = (v.get('src', '') or v.get('data-src', '') or
+                       v.get('data-video', '') or v.get('data-url', ''))
+                if not src:
+                    source = v.select_one('source')
+                    if source:
+                        src = (source.get('src', '') or source.get('data-src', ''))
+                if src:
+                    if not src.startswith('http'):
+                        src = BASE_URL + src
+                    src = src.split('#')[0]
+                    if src not in video_urls:
+                        video_urls.append(src)
+                        print(f'    본문 외부 video 발견: {src[:60]}')
+                poster = v.get('poster', '')
+                if poster and not post.get('thumb'):
                     if not poster.startswith('http'):
                         poster = BASE_URL + poster
                     post['thumb'] = poster
@@ -280,7 +313,7 @@ def fetch_post_detail(session, post):
             # a 태그로 연결된 mp4/영상 파일
             for a in content_el.select('a[href]'):
                 href = a.get('href', '')
-                if any(href.endswith(ext) for ext in ['.mp4', '.webm', '.mov', '.avi']):
+                if any(href.lower().endswith(ext) for ext in ['.mp4', '.webm', '.mov', '.avi']):
                     if not href.startswith('http'):
                         href = BASE_URL + href
                     if href not in video_urls:

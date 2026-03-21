@@ -9,25 +9,26 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root {
-  --bg: #080810; --bg2: #0f0f1a; --bg3: #16162a;
-  --border: rgba(140,100,255,0.12); --border2: rgba(140,100,255,0.28);
-  --text: #eeeeff; --muted: #7070a0;
-  --accent: #a78bfa; --accent2: #f472b6;
-  --glow: rgba(167,139,250,0.12);
-  --yt: #ff4444; --mlb: #4a9eff;
+  --bg: #0f0808; --bg2: #1a0f0f; --bg3: #2a1616;
+  --border: rgba(255,80,80,0.12); --border2: rgba(255,80,80,0.28);
+  --text: #ffeeee; --muted: #a07070;
+  --accent: #ff6b6b; --accent2: #ff4757;
+  --glow: rgba(255,107,107,0.12);
+  --yt: #ff4444; --mlb: #ff6b35;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { background: var(--bg); color: var(--text); font-family: 'Noto Sans KR', sans-serif; min-height: 100vh; overflow-x: hidden; }
 body::before { content: ''; position: fixed; inset: 0; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.025) 2px, rgba(0,0,0,0.025) 4px); pointer-events: none; z-index: 0; }
 
 /* NAV */
-nav { position: sticky; top: 0; z-index: 100; background: rgba(8,8,16,0.95); backdrop-filter: blur(16px); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 1.5rem; height: 56px; gap: 1rem; }
-.logo { font-family: 'Bebas Neue'; font-size: 26px; letter-spacing: 5px; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; cursor: pointer; flex-shrink: 0; }
+nav { position: sticky; top: 0; z-index: 100; background: rgba(15,8,8,0.95); backdrop-filter: blur(16px); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 1.5rem; height: 56px; gap: 1rem; }
+.logo { font-family: 'Bebas Neue'; font-size: 26px; letter-spacing: 5px; cursor: pointer; flex-shrink: 0; }
+.logo-ai { color: #fff; }
+.logo-gathering { background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 .nav-platform-tabs { display: flex; gap: 4px; }
 .nav-ptab { font-size: 12px; padding: 5px 10px; color: var(--muted); cursor: pointer; border-radius: 6px; transition: all 0.15s; border: 1px solid transparent; font-family: 'Noto Sans KR'; display: flex; align-items: center; gap: 5px; white-space: nowrap; }
 .nav-ptab:hover { color: var(--text); background: var(--glow); }
-.nav-ptab.active-yt { color: var(--yt); background: rgba(255,68,68,0.08); border-color: rgba(255,68,68,0.2); }
-.nav-ptab.active-mlb { color: var(--mlb); background: rgba(74,158,255,0.08); border-color: rgba(74,158,255,0.2); }
+.nav-ptab.active-mlb { color: #4a9eff; background: rgba(74,158,255,0.08); border-color: rgba(74,158,255,0.2); }
 .nav-ptab.active-bm { color: var(--accent); background: var(--glow); border-color: var(--border2); }
 .nav-right { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
 .btn-primary { font-family: 'Noto Sans KR'; font-size: 12px; padding: 7px 16px; border-radius: 6px; border: none; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; font-weight: 700; cursor: pointer; white-space: nowrap; }
@@ -184,7 +185,7 @@ footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center;
 <body>
 
 <nav>
-  <span class="logo" onclick="showPlatform('mlb')">AI GATHERING</span>
+  <span class="logo" onclick="showPlatform('mlb')"><span class="logo-ai">AI </span><span class="logo-gathering">GATHERING</span></span>
   <div class="nav-platform-tabs">
     <div class="nav-ptab active-mlb" id="ptab-mlb" onclick="showPlatform('mlb',this)">
       <svg class="nav-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><text x="12" y="16" text-anchor="middle" font-size="9" font-weight="900" font-family="Arial" fill="currentColor">MLB</text></svg>
@@ -205,7 +206,7 @@ footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center;
 <!-- MLB파크 PAGE -->
 <div class="page active" id="page-mlb">
   <div class="hero">
-    <h1><span class="t1">AI</span><br><span class="t2">GATHERING</span></h1>
+    <h1><span class="t1" style="-webkit-text-fill-color:#fff;color:#fff;">AI</span><br><span class="t2">GATHERING</span></h1>
     <p>국내 유명 커뮤니티 AI영상 게시물 모음.</p>
     <div class="stats-row">
       <div class="stat"><div class="stat-num" id="mlbTotalCount">0</div><div class="stat-label">총 게시물</div></div>
@@ -317,19 +318,6 @@ footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center;
         <button onclick="adminLogout()" style="font-family:'Noto Sans KR';font-size:12px;padding:6px 14px;border-radius:6px;border:1px solid var(--border2);background:transparent;color:var(--muted);cursor:pointer;">로그아웃</button>
       </div>
 
-      <div class="admin-hd">YouTube API 키</div>
-      <div style="margin-bottom:1.5rem;">
-        <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">YouTube Data API v3 키를 입력하세요.</div>
-        <div class="setup-row">
-          <input class="text-input" id="apiKeyInput" type="password" placeholder="AIzaSy... YouTube API 키">
-          <button class="setup-btn" onclick="saveYTKey()">저장 및 검색</button>
-        </div>
-        <div class="status-msg" id="apiStatus"></div>
-      </div>
-
-      <div class="admin-hd">주제별 키워드 관리</div>
-      <div style="margin-bottom:1.5rem;" id="topicKwManager"></div>
-
       <div class="admin-hd">비밀번호 변경</div>
       <div style="margin-bottom:1.5rem;max-width:320px;display:flex;flex-direction:column;gap:8px;">
         <input type="password" id="pwCurrent" placeholder="현재 비밀번호" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;font-family:'Noto Sans KR';outline:none;">
@@ -351,24 +339,14 @@ footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center;
         <button class="topic-tab" onclick="setMlbAdmFilter('pmgl',this)">펌글</button>
         <button class="topic-tab" onclick="setMlbAdmFilter('idol',this)">아이돌</button>
       </div>
-      <div style="overflow-x:auto;margin-bottom:2rem;">
+      <div style="overflow-x:auto;margin-bottom:0.5rem;">
         <table class="admin-table">
-          <thead><tr><th>제목</th><th>카테고리</th><th>날짜</th><th>상태</th><th>액션</th></tr></thead>
+          <thead><tr><th>제목</th><th>카테고리</th><th>날짜</th><th>액션</th></tr></thead>
           <tbody id="mlbAdmTbody"></tbody>
         </table>
       </div>
+      <div id="mlbAdmPagination" style="margin-bottom:2rem;"></div>
 
-      <div class="admin-hd">YouTube 영상 관리</div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1rem;">
-        <button class="topic-tab on" onclick="setAdmFilter('all',this)">전체</button>
-        <button class="topic-tab" onclick="setAdmFilter('hidden',this)">숨김</button>
-      </div>
-      <div style="overflow-x:auto;">
-        <table class="admin-table">
-          <thead><tr><th>제목</th><th>주제</th><th>조회수</th><th>좋아요</th><th>상태</th><th>액션</th></tr></thead>
-          <tbody id="admTbody"></tbody>
-        </table>
-      </div>
     </div>
   </div>
 </div>
@@ -406,8 +384,8 @@ footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center;
 <div class="toast" id="toast"></div>
 
 <footer>
-  <div style="font-family:'Bebas Neue';font-size:22px;letter-spacing:4px;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px;">AIGATHERING</div>
-  AI 콘텐츠 큐레이션 허브 · YouTube · MLB파크
+  <div style="font-family:'Bebas Neue';font-size:22px;letter-spacing:4px;margin-bottom:4px;"><span style="color:#fff;">AI </span><span style="background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;">GATHERING</span></div>
+  국내 유명 커뮤니티 AI영상 게시물 모음
   <button onclick="showPlatform('admin')" style="background:transparent;border:none;color:transparent;cursor:default;font-size:12px;padding:4px 8px;margin-left:4px;user-select:none;" onmouseenter="this.style.cursor='pointer'" onmouseleave="this.style.cursor='default'">·</button>
 </footer>
 
@@ -890,9 +868,12 @@ async function admDel(ytId){await db.from('videos').delete().eq('yt_id',ytId);re
 
 // ── MLB 관리자 ──
 let mlbAdmFilter = 'all';
+let mlbAdmPage = 1;
+const MLB_ADM_PER_PAGE = 10;
 
 function setMlbAdmFilter(f, el) {
   mlbAdmFilter = f;
+  mlbAdmPage = 1;
   document.querySelectorAll('#adminContent .topic-tab').forEach(t => t.classList.remove('on'));
   if (el) el.classList.add('on');
   renderMlbAdmTable();
@@ -900,29 +881,43 @@ function setMlbAdmFilter(f, el) {
 
 async function renderMlbAdmTable() {
   if (!admLoggedIn) return;
-  let query = db.from('mlb_posts').select('*').neq('status','deleted').order('created_at',{ascending:false});
+  let query = db.from('mlb_posts').select('*').neq('status','deleted').order('post_date',{ascending:false});
   if (mlbAdmFilter !== 'all') query = query.eq('tag', mlbAdmFilter);
   const { data } = await query;
   const list = data || [];
+  const total = list.length;
+  const totalPages = Math.ceil(total / MLB_ADM_PER_PAGE);
+  const paged = list.slice((mlbAdmPage-1)*MLB_ADM_PER_PAGE, mlbAdmPage*MLB_ADM_PER_PAGE);
   const tagLabels = { movie:'영화', broadcast:'방송', cartoon:'만화', it:'IT', humor:'유머', jjal:'짤방', pmgl:'펌글', idol:'아이돌' };
-  document.getElementById('mlbAdmTbody').innerHTML = list.map(p => `<tr>
-    <td style="max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+
+  document.getElementById('mlbAdmTbody').innerHTML = paged.map(p => `<tr>
+    <td style="max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
       <a href="${p.url}" target="_blank" style="color:var(--accent);text-decoration:none;">${p.title}</a>
     </td>
-    <td><span style="font-size:10px;padding:2px 8px;border-radius:20px;background:rgba(74,158,255,0.1);color:var(--mlb);border:1px solid rgba(74,158,255,0.2);">${tagLabels[p.tag]||p.tag||''}</span></td>
+    <td><span style="font-size:10px;padding:2px 8px;border-radius:20px;background:rgba(255,107,107,0.1);color:var(--accent);border:1px solid rgba(255,107,107,0.2);">${tagLabels[p.tag]||p.tag||''}</span></td>
     <td style="white-space:nowrap;">${(p.post_date||p.created_at||'').slice(0,10)}</td>
-    <td><span style="font-size:10px;padding:2px 8px;border-radius:4px;font-weight:700;background:rgba(110,231,183,0.1);color:#6ee7b7;border:1px solid rgba(110,231,183,0.2);">표시중</span></td>
-    <td>
-      <button class="adm-btn del" onclick="mlbAdmDel('${p.post_id}')">삭제</button>
-    </td>
+    <td><button class="adm-btn del" onclick="mlbAdmDel('${p.post_id}')">삭제</button></td>
   </tr>`).join('');
+
+  // 페이지네이션
+  const pgEl = document.getElementById('mlbAdmPagination');
+  if (pgEl) {
+    let pages = '';
+    for (let i=1; i<=totalPages; i++) {
+      pages += `<button onclick="mlbAdmGoPage(${i})" style="font-family:'Noto Sans KR';font-size:12px;padding:4px 8px;border-radius:4px;border:1px solid var(--border${i===mlbAdmPage?'2':''}); background:${i===mlbAdmPage?'var(--glow)':'transparent'};color:${i===mlbAdmPage?'var(--accent)':'var(--muted)'};cursor:pointer;margin:0 2px;">${i}</button>`;
+    }
+    pgEl.innerHTML = `<div style="margin-top:10px;display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
+      <span style="font-size:12px;color:var(--muted);margin-right:6px;">총 ${total}개</span>
+      ${pages}
+    </div>`;
+  }
 }
+
+function mlbAdmGoPage(page) { mlbAdmPage = page; renderMlbAdmTable(); }
 
 async function mlbAdmDel(postId) {
   if (!confirm('삭제하면 다시 크롤링되지 않습니다. 삭제할까요?')) return;
-  // 실제 삭제 대신 status = 'deleted' 로 변경 (재수집 방지)
   await db.from('mlb_posts').update({ status: 'deleted' }).eq('post_id', postId);
-  // 화면에서도 제거
   mlbPosts = mlbPosts.filter(p => p.post_id !== postId);
   renderMlbGrid(); updateMlbStats();
   renderMlbAdmTable(); toast('삭제됨 (재수집 방지)');
@@ -1034,9 +1029,10 @@ function buildMlbCard(p) {
       <div class="card-title">${p.title}</div>
       ${summary?`<div style="font-size:11px;color:var(--muted);margin-top:4px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${summary}</div>`:''}
       <div class="card-meta" style="margin-top:8px;">
-        <span class="card-ch"><span class="ch-dot" style="background:rgba(74,158,255,0.15);border-color:rgba(74,158,255,0.3);color:var(--mlb);">${(p.author||'?')[0]}</span>${p.author||'익명'}</span>
-        <span class="card-date">${(p.created_at||'').slice(0,10)}</span>
+        <span class="card-ch"><span class="ch-dot" style="background:rgba(255,107,107,0.15);border-color:rgba(255,107,107,0.3);color:var(--accent);">${(p.author||'?')[0]}</span>${p.author||'익명'}</span>
+        <span class="card-date">${(p.post_date||p.created_at||'').slice(0,10)}</span>
       </div>
+      ${admLoggedIn ? `<button onclick="event.stopPropagation();mlbAdmDel('${p.post_id}')" style="margin-top:8px;font-family:'Noto Sans KR';font-size:11px;padding:3px 10px;border-radius:4px;border:1px solid rgba(248,113,113,0.4);background:rgba(248,113,113,0.08);color:#f87171;cursor:pointer;width:100%;">🗑 삭제</button>` : ''}
     </div>
   </div>`;
 }
