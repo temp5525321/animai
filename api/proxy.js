@@ -50,8 +50,10 @@ export default async function handler(req, res) {
 
     res.setHeader('Content-Type', contentType);
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Cache-Control', 'public, max-age=3600');
-    res.setHeader('Accept-Ranges', acceptRanges || 'bytes');
+    // Vercel Edge Cache 강화 - 1시간 캐싱
+    res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400');
+    res.setHeader('CDN-Cache-Control', 'public, max-age=3600');
+    res.setHeader('Vercel-CDN-Cache-Control', 'public, max-age=3600');
     if (contentLength) res.setHeader('Content-Length', contentLength);
     if (contentRange) res.setHeader('Content-Range', contentRange);
 
