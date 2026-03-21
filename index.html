@@ -339,7 +339,26 @@ footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center;
         <div id="pwStatus" style="font-size:12px;display:none;"></div>
       </div>
 
-      <div class="admin-hd">영상 관리</div>
+      <div class="admin-hd">MLB파크 게시물 관리</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1rem;">
+        <button class="topic-tab on" onclick="setMlbAdmFilter('all',this)">전체</button>
+        <button class="topic-tab" onclick="setMlbAdmFilter('movie',this)">영화</button>
+        <button class="topic-tab" onclick="setMlbAdmFilter('broadcast',this)">방송</button>
+        <button class="topic-tab" onclick="setMlbAdmFilter('cartoon',this)">만화</button>
+        <button class="topic-tab" onclick="setMlbAdmFilter('it',this)">IT</button>
+        <button class="topic-tab" onclick="setMlbAdmFilter('humor',this)">유머</button>
+        <button class="topic-tab" onclick="setMlbAdmFilter('jjal',this)">짤방</button>
+        <button class="topic-tab" onclick="setMlbAdmFilter('pmgl',this)">펌글</button>
+        <button class="topic-tab" onclick="setMlbAdmFilter('idol',this)">아이돌</button>
+      </div>
+      <div style="overflow-x:auto;margin-bottom:2rem;">
+        <table class="admin-table">
+          <thead><tr><th>제목</th><th>카테고리</th><th>날짜</th><th>상태</th><th>액션</th></tr></thead>
+          <tbody id="mlbAdmTbody"></tbody>
+        </table>
+      </div>
+
+      <div class="admin-hd">YouTube 영상 관리</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1rem;">
         <button class="topic-tab on" onclick="setAdmFilter('all',this)">전체</button>
         <button class="topic-tab" onclick="setAdmFilter('hidden',this)">숨김</button>
@@ -770,7 +789,7 @@ function showAdminContent(email) {
   document.getElementById('adminLoginArea').style.display='none';
   document.getElementById('adminContent').style.display='block';
   document.getElementById('adminEmailLabel').textContent=email||'';
-  fillApiKeyInput(); renderAdmTable(); renderTopicKwManager();
+  fillApiKeyInput(); renderAdmTable(); renderTopicKwManager(); renderMlbAdmTable();
   toast('관리자로 로그인됨');
 }
 
@@ -865,9 +884,49 @@ async function renderAdmTable() {
   </tr>`).join('');
 }
 
-async function admHide(ytId){await db.from('videos').update({status:'hidden'}).eq('yt_id',ytId);await loadVideos();renderAdmTable();toast('숨김 처리됨');}
-async function admShow(ytId){await db.from('videos').update({status:'approved'}).eq('yt_id',ytId);await loadVideos();renderAdmTable();toast('복원됨');}
-async function admDel(ytId){await db.from('videos').delete().eq('yt_id',ytId);await loadVideos();renderAdmTable();toast('삭제됨');}
+async function admHide(ytId){await db.from('videos').update({status:'hidden'}).eq('yt_id',ytId);renderAdmTable();toast('숨김 처리됨');}
+async function admShow(ytId){await db.from('videos').update({status:'approved'}).eq('yt_id',ytId);renderAdmTable();toast('복원됨');}
+async function admDel(ytId){await db.from('videos').delete().eq('yt_id',ytId);renderAdmTable();toast('삭제됨');}
+
+// ── MLB 관리자 ──
+let mlbAdmFilter = 'all';
+
+function setMlbAdmFilter(f, el) {
+  mlbAdmFilter = f;
+  document.querySelectorAll('#adminContent .topic-tab').forEach(t => t.classList.remove('on'));
+  if (el) el.classList.add('on');
+  renderMlbAdmTable();
+}
+
+async function renderMlbAdmTable() {
+  if (!admLoggedIn) return;
+  let query = db.from('mlb_posts').select('*').neq('status','deleted').order('created_at',{ascending:false});
+  if (mlbAdmFilter !== 'all') query = query.eq('tag', mlbAdmFilter);
+  const { data } = await query;
+  const list = data || [];
+  const tagLabels = { movie:'영화', broadcast:'방송', cartoon:'만화', it:'IT', humor:'유머', jjal:'짤방', pmgl:'펌글', idol:'아이돌' };
+  document.getElementById('mlbAdmTbody').innerHTML = list.map(p => `<tr>
+    <td style="max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+      <a href="${p.url}" target="_blank" style="color:var(--accent);text-decoration:none;">${p.title}</a>
+    </td>
+    <td><span style="font-size:10px;padding:2px 8px;border-radius:20px;background:rgba(74,158,255,0.1);color:var(--mlb);border:1px solid rgba(74,158,255,0.2);">${tagLabels[p.tag]||p.tag||''}</span></td>
+    <td style="white-space:nowrap;">${(p.post_date||p.created_at||'').slice(0,10)}</td>
+    <td><span style="font-size:10px;padding:2px 8px;border-radius:4px;font-weight:700;background:rgba(110,231,183,0.1);color:#6ee7b7;border:1px solid rgba(110,231,183,0.2);">표시중</span></td>
+    <td>
+      <button class="adm-btn del" onclick="mlbAdmDel('${p.post_id}')">삭제</button>
+    </td>
+  </tr>`).join('');
+}
+
+async function mlbAdmDel(postId) {
+  if (!confirm('삭제하면 다시 크롤링되지 않습니다. 삭제할까요?')) return;
+  // 실제 삭제 대신 status = 'deleted' 로 변경 (재수집 방지)
+  await db.from('mlb_posts').update({ status: 'deleted' }).eq('post_id', postId);
+  // 화면에서도 제거
+  mlbPosts = mlbPosts.filter(p => p.post_id !== postId);
+  renderMlbGrid(); updateMlbStats();
+  renderMlbAdmTable(); toast('삭제됨 (재수집 방지)');
+}
 
 function toast(msg) {
   const t=document.getElementById('toast');

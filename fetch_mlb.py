@@ -54,6 +54,7 @@ def login():
         return None
 
 def get_existing_post_ids():
+    # deleted 포함 전체 post_id 조회 (삭제된 게시물 재수집 방지)
     res = requests.get(
         f'{SUPABASE_URL}/rest/v1/mlb_posts?select=post_id',
         headers=HEADERS
@@ -255,15 +256,19 @@ def fetch_post_detail(session, post):
             # 영상 URL 수집
             video_urls = []
 
-            # video 태그 (MLB파크는 video.content_video 사용)
+            # video 태그 - 여러 속성 체크
             for v in content_el.select('video'):
-                src = v.get('src', '')
+                src = (v.get('src', '') or v.get('data-src', '') or
+                       v.get('data-video', '') or v.get('data-url', ''))
                 if not src:
                     source = v.select_one('source')
-                    src = source.get('src', '') if source else ''
+                    if source:
+                        src = (source.get('src', '') or source.get('data-src', ''))
                 if src:
                     if not src.startswith('http'):
                         src = BASE_URL + src
+                    # #t=0.01 같은 타임스탬프 제거
+                    src = src.split('#')[0]
                     video_urls.append(src)
                 # poster를 항상 썸네일로 우선 사용
                 poster = v.get('poster', '')
@@ -271,6 +276,15 @@ def fetch_post_detail(session, post):
                     if not poster.startswith('http'):
                         poster = BASE_URL + poster
                     post['thumb'] = poster
+
+            # a 태그로 연결된 mp4/영상 파일
+            for a in content_el.select('a[href]'):
+                href = a.get('href', '')
+                if any(href.endswith(ext) for ext in ['.mp4', '.webm', '.mov', '.avi']):
+                    if not href.startswith('http'):
+                        href = BASE_URL + href
+                    if href not in video_urls:
+                        video_urls.append(href)
 
             # iframe (YouTube + 외부 영상 embed)
             for iframe in content_el.select('iframe'):
