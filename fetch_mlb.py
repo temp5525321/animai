@@ -240,8 +240,12 @@ def fetch_post_detail(session, post):
 
             # 이미지 URL 수집 (본문 영역)
             images = []
-            for img in content_el.select('img'):
-                src = img.get('src', '') or img.get('data-src', '')
+            all_imgs = content_el.select('img')
+            print(f'    [디버그] content_el img 태그 수: {len(all_imgs)}')
+            for img in all_imgs:
+                raw_src = img.get('src', '') or img.get('data-src', '')
+                print(f'    [디버그] img raw_src: {raw_src[:80]}')
+                src = raw_src
                 if src:
                     if src.startswith('//'):
                         src = 'https:' + src
@@ -249,6 +253,8 @@ def fetch_post_detail(session, post):
                         src = BASE_URL + src
                     if not any(x in src for x in ['btn', 'ico', 'arrow', 'blank', 'loading', 'profile', 'Profile', 'ugc/WWW']):
                         images.append(src)
+                    else:
+                        print(f'    [디버그] 필터됨: {src[:80]}')
 
             # 본문 외부 이미지도 체크 (view_context 등)
             view_ctx = soup.select_one('div.view_context') or soup.select_one('div.view_wrap')
@@ -388,7 +394,11 @@ def fetch_post_detail(session, post):
     return post
 
 def insert_posts(posts):
-    # upsert로 중복 방지
+    # 저장 전 이미지 디버그
+    for p in posts:
+        if p.get('images'):
+            print(f'  저장할 이미지: {p["title"][:20]} → {len(p["images"])}개 {p["images"][:2]}')
+    
     headers = {**HEADERS, 'Prefer': 'resolution=merge-duplicates,return=minimal'}
     res = requests.post(
         f'{SUPABASE_URL}/rest/v1/mlb_posts',
@@ -453,6 +463,9 @@ def main():
             if not video_urls:
                 print(f'  영상 없음, 스킵: {p["title"][:30]}')
                 continue
+
+            if images:
+                print(f'  이미지 {len(images)}개 저장: {p["title"][:20]}')
 
             enriched.append({
                 'post_id': p['post_id'],
