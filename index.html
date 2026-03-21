@@ -950,7 +950,7 @@ function toast(msg) {
 
 // ── MLB파크 ──
 async function loadMlbPosts() {
-  const { data, error } = await db.from('mlb_posts').select('*').eq('status','approved').order('created_at',{ascending:false});
+  const { data, error } = await db.from('mlb_posts').select('*').eq('status','approved').order('post_date',{ascending:false, nullsFirst:false});
   if (error) { console.error('MLB 로드 오류:', error.message); return; }
   mlbPosts = data||[];
   renderMlbGrid();
@@ -978,7 +978,7 @@ function renderMlbGrid() {
     return true;
   });
   if (sort==='likes') list.sort((a,b)=>(b.like_count||0)-(a.like_count||0));
-  else list.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+  else list.sort((a,b)=>new Date(b.post_date||b.created_at)-new Date(a.post_date||a.created_at));
 
   const grid = document.getElementById('mlbGrid');
   const empty = document.getElementById('mlbEmptyState');
