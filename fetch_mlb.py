@@ -243,7 +243,9 @@ def fetch_post_detail(session, post):
             for img in content_el.select('img'):
                 src = img.get('src', '') or img.get('data-src', '')
                 if src:
-                    if not src.startswith('http'):
+                    if src.startswith('//'):
+                        src = 'https:' + src
+                    elif not src.startswith('http'):
                         src = BASE_URL + src
                     if not any(x in src for x in ['btn', 'ico', 'arrow', 'blank', 'loading', 'profile', 'Profile', 'ugc/WWW']):
                         images.append(src)
@@ -254,7 +256,9 @@ def fetch_post_detail(session, post):
                 for img in view_ctx.select('img'):
                     src = img.get('src', '') or img.get('data-src', '')
                     if src:
-                        if not src.startswith('http'):
+                        if src.startswith('//'):
+                            src = 'https:' + src
+                        elif not src.startswith('http'):
                             src = BASE_URL + src
                         if src not in images and not any(x in src for x in ['btn', 'ico', 'arrow', 'blank', 'loading', 'profile', 'Profile', 'ugc/WWW']):
                             images.append(src)

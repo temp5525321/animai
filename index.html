@@ -497,8 +497,13 @@ function showPlatform(name) {
   document.querySelectorAll('.nav-ptab').forEach(t=>{ t.className='nav-ptab'; });
   const tab = document.getElementById('ptab-' + name);
   if (tab) tab.classList.add(name==='mlb'?'active-mlb':'active-bm');
+  // admin 페이지일 때 MLB파크 탭 색상 유지
+  if (name==='admin') {
+    const mlbTab = document.getElementById('ptab-mlb');
+    if (mlbTab) mlbTab.classList.add('active-mlb');
+  }
   if (name==='bookmarks') renderBm();
-  if (name==='admin') renderAdmTable();
+  if (name==='admin') { renderAdmTable(); renderMlbAdmTable(); }
   if (name==='mlb') renderMlbGrid();
   history.replaceState(null, '', '#' + name);
 }
