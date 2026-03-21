@@ -21,16 +21,16 @@ body { background: var(--bg); color: var(--text); font-family: 'Noto Sans KR', s
 body::before { content: ''; position: fixed; inset: 0; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.025) 2px, rgba(0,0,0,0.025) 4px); pointer-events: none; z-index: 0; }
 
 /* NAV */
-nav { position: sticky; top: 0; z-index: 100; background: rgba(8,8,16,0.95); backdrop-filter: blur(16px); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 2rem; height: 56px; gap: 1.5rem; }
+nav { position: sticky; top: 0; z-index: 100; background: rgba(8,8,16,0.95); backdrop-filter: blur(16px); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 1.5rem; height: 56px; gap: 1rem; }
 .logo { font-family: 'Bebas Neue'; font-size: 26px; letter-spacing: 5px; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; cursor: pointer; flex-shrink: 0; }
-.nav-platform-tabs { display: flex; gap: 2px; }
-.nav-ptab { font-size: 13px; padding: 6px 14px; color: var(--muted); cursor: pointer; border-radius: 6px; transition: all 0.15s; border: 1px solid transparent; font-family: 'Noto Sans KR'; }
+.nav-platform-tabs { display: flex; gap: 4px; }
+.nav-ptab { font-size: 12px; padding: 5px 10px; color: var(--muted); cursor: pointer; border-radius: 6px; transition: all 0.15s; border: 1px solid transparent; font-family: 'Noto Sans KR'; display: flex; align-items: center; gap: 5px; white-space: nowrap; }
 .nav-ptab:hover { color: var(--text); background: var(--glow); }
 .nav-ptab.active-yt { color: var(--yt); background: rgba(255,68,68,0.08); border-color: rgba(255,68,68,0.2); }
 .nav-ptab.active-mlb { color: var(--mlb); background: rgba(74,158,255,0.08); border-color: rgba(74,158,255,0.2); }
 .nav-ptab.active-bm { color: var(--accent); background: var(--glow); border-color: var(--border2); }
-.nav-right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
-.btn-primary { font-family: 'Noto Sans KR'; font-size: 12px; padding: 7px 16px; border-radius: 6px; border: none; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; font-weight: 700; cursor: pointer; }
+.nav-right { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+.btn-primary { font-family: 'Noto Sans KR'; font-size: 12px; padding: 7px 16px; border-radius: 6px; border: none; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; font-weight: 700; cursor: pointer; white-space: nowrap; }
 .btn-primary:hover { opacity: 0.85; }
 
 /* HERO */
@@ -166,78 +166,47 @@ nav { position: sticky; top: 0; z-index: 100; background: rgba(8,8,16,0.95); bac
 footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center; color: var(--muted); font-size: 12px; position: relative; z-index: 1; }
 
 @media (max-width: 640px) {
-  nav { padding: 0 1rem; gap: 1rem; }
+  nav { padding: 0 0.75rem; gap: 0.5rem; height: 52px; }
+  .logo { font-size: 18px; letter-spacing: 3px; }
+  .nav-ptab { font-size: 11px; padding: 5px 8px; gap: 3px; }
+  .nav-ptab .nav-icon { width: 14px; height: 14px; }
+  .nav-ptab span { display: none; }
   .hero, .toolbar, .section, .topic-tabs { padding-left: 1rem; padding-right: 1rem; }
   .admin-wrap { margin-left: 1rem; margin-right: 1rem; }
+  .grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .btn-primary { font-size: 11px; padding: 6px 10px; }
+}
+@media (max-width: 380px) {
   .grid { grid-template-columns: 1fr; }
-  .logo { font-size: 20px; }
 }
 </style>
 </head>
 <body>
 
 <nav>
-  <span class="logo" onclick="showPlatform('youtube')">AIPULSE</span>
+  <span class="logo" onclick="showPlatform('mlb')">AIPULSE</span>
   <div class="nav-platform-tabs">
-    <div class="nav-ptab active-yt" id="ptab-youtube" onclick="showPlatform('youtube',this)">▶ YouTube</div>
-    <div class="nav-ptab" id="ptab-mlb" onclick="showPlatform('mlb',this)">MLB파크</div>
-    <div class="nav-ptab" id="ptab-bookmarks" onclick="showPlatform('bookmarks',this)">북마크</div>
+    <div class="nav-ptab active-mlb" id="ptab-mlb" onclick="showPlatform('mlb',this)">
+      <svg class="nav-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><text x="12" y="16" text-anchor="middle" font-size="9" font-weight="900" font-family="Arial" fill="currentColor">MLB</text></svg>
+      <span>MLB파크</span>
+    </div>
+    <div class="nav-ptab" id="ptab-bookmarks" onclick="showPlatform('bookmarks',this)">
+      <svg class="nav-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+      <span>북마크</span>
+    </div>
   </div>
   <div class="nav-right">
     <div id="userArea">
       <button class="btn-primary" onclick="googleLogin()" style="background:transparent;border:1px solid var(--border2);color:var(--muted);">구글 로그인</button>
     </div>
-    <button class="btn-primary" id="fetchBtn" onclick="fetchYT()">▶ 수집</button>
   </div>
 </nav>
 
-<!-- YOUTUBE PAGE -->
-<div class="page active" id="page-youtube">
-  <div class="hero">
-    <h1><span class="t1">AI</span><br><span class="t2">PULSE</span></h1>
-    <p>YouTube · MLB파크에서 자동 수집한 AI 콘텐츠 큐레이션. 관심 주제만 골라서 보세요.</p>
-    <div class="stats-row">
-      <div class="stat"><div class="stat-num" id="totalCount">0</div><div class="stat-label">총 영상</div></div>
-      <div class="stat"><div class="stat-num" id="likedCount">0</div><div class="stat-label">내 좋아요</div></div>
-      <div class="stat"><div class="stat-num" id="bmCount">0</div><div class="stat-label">북마크</div></div>
-    </div>
-  </div>
-
-  <!-- 주제별 탭 -->
-  <div class="topic-tabs" id="topicTabs">
-    <button class="topic-tab on" data-topic="all" onclick="setTopic('all',this)">전체</button>
-    <button class="topic-tab" data-topic="anime" onclick="setTopic('anime',this)">애니 실사화</button>
-    <button class="topic-tab" data-topic="superman" onclick="setTopic('superman',this)">슈퍼맨</button>
-    <button class="topic-tab" data-topic="gourmet" onclick="setTopic('gourmet',this)">고독한미식가</button>
-    <button class="topic-tab" data-topic="sora" onclick="setTopic('sora',this)">Sora</button>
-    <button class="topic-tab" data-topic="runway" onclick="setTopic('runway',this)">Runway</button>
-    <button class="topic-tab" data-topic="kling" onclick="setTopic('kling',this)">Kling</button>
-  </div>
-
-  <div class="toolbar">
-    <div class="search-box">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-      <input type="text" id="searchInput" placeholder="영상 검색..." oninput="renderGrid()">
-    </div>
-    <select class="sort-sel" id="sortSel" onchange="renderGrid()">
-      <option value="newest">최신순</option>
-      <option value="views">조회수순</option>
-      <option value="likes">좋아요순</option>
-    </select>
-  </div>
-
-  <div class="section">
-    <div class="sec-label" id="secLabel">전체 영상</div>
-    <div class="grid" id="grid"></div>
-    <div class="empty-st" id="emptyState">아직 수집된 영상이 없습니다.</div>
-  </div>
-</div>
-
 <!-- MLB파크 PAGE -->
-<div class="page" id="page-mlb">
+<div class="page active" id="page-mlb">
   <div class="hero">
     <h1><span class="t1">AI</span><br><span class="t2">PULSE</span></h1>
-    <p>MLB파크 불펜 영화·방송 말머리에서 자동 수집한 AI 관련 게시물 모음.</p>
+    <p>MLB파크 불펜에서 자동 수집한 AI 관련 게시물 모음.</p>
     <div class="stats-row">
       <div class="stat"><div class="stat-num" id="mlbTotalCount">0</div><div class="stat-label">총 게시물</div></div>
       <div class="stat"><div class="stat-num" id="mlbLikedCount">0</div><div class="stat-label">내 좋아요</div></div>
@@ -251,7 +220,11 @@ footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center;
     <button class="topic-tab" onclick="setMlbCategory('movie',this)">영화</button>
     <button class="topic-tab" onclick="setMlbCategory('broadcast',this)">방송</button>
     <button class="topic-tab" onclick="setMlbCategory('cartoon',this)">만화</button>
-    <button class="topic-tab" onclick="setMlbCategory('nineteen',this)">19금</button>
+    <button class="topic-tab" onclick="setMlbCategory('it',this)">IT</button>
+    <button class="topic-tab" onclick="setMlbCategory('humor',this)">유머</button>
+    <button class="topic-tab" onclick="setMlbCategory('jjal',this)">짤방</button>
+    <button class="topic-tab" onclick="setMlbCategory('pmgl',this)">펌글</button>
+    <button class="topic-tab" onclick="setMlbCategory('idol',this)">아이돌</button>
   </div>
 
   <div class="toolbar">
@@ -457,13 +430,12 @@ let curMlbCategory = 'all';
 
 // ── 초기화 ──
 async function init() {
-  // URL 해시로 페이지 복원
   const hash = location.hash.replace('#','');
-  const validPages = ['youtube','mlb','bookmarks','admin'];
-  const startPage = validPages.includes(hash) ? hash : 'youtube';
+  const validPages = ['mlb','bookmarks','admin'];
+  const startPage = validPages.includes(hash) ? hash : 'mlb';
   showPlatform(startPage);
 
-  await Promise.all([loadVideos(), loadMlbPosts()]);
+  await loadMlbPosts();
   const { data: { session } } = await db.auth.getSession();
   if (session?.user) {
     await onUserLogin(session.user);
@@ -479,14 +451,14 @@ async function onUserLogin(user) {
   currentUser = user;
   updateUserUI(user);
   await loadUserData();
-  renderGrid();
-  updateStats();
+  renderMlbGrid();
+  updateMlbStats();
 }
 
 function onUserLogout() {
-  currentUser = null; bookmarks = []; likedYtIds = [];
+  currentUser = null;
   mlbBookmarks = []; mlbLikedIds = [];
-  updateUserUI(null); renderGrid(); renderMlbGrid(); updateStats();
+  updateUserUI(null); renderMlbGrid(); updateMlbStats();
 }
 
 function updateUserUI(user) {
@@ -512,14 +484,10 @@ async function userLogout() { await db.auth.signOut(); toast('로그아웃됐습
 
 async function loadUserData() {
   if (!currentUser) return;
-  const [bmRes, likeRes, mlbBmRes, mlbLikeRes] = await Promise.all([
-    db.from('bookmarks').select('yt_id').eq('user_id', currentUser.id),
-    db.from('likes').select('yt_id').eq('user_id', currentUser.id),
+  const [mlbBmRes, mlbLikeRes] = await Promise.all([
     db.from('mlb_bookmarks').select('post_id').eq('user_id', currentUser.id),
     db.from('mlb_likes').select('post_id').eq('user_id', currentUser.id)
   ]);
-  bookmarks = (bmRes.data||[]).map(b=>b.yt_id);
-  likedYtIds = (likeRes.data||[]).map(l=>l.yt_id);
   mlbBookmarks = (mlbBmRes.data||[]).map(b=>b.post_id);
   mlbLikedIds = (mlbLikeRes.data||[]).map(l=>l.post_id);
 }
@@ -531,12 +499,10 @@ function showPlatform(name) {
   document.getElementById('page-' + name).classList.add('active');
   document.querySelectorAll('.nav-ptab').forEach(t=>{ t.className='nav-ptab'; });
   const tab = document.getElementById('ptab-' + name);
-  if (tab) tab.classList.add(name==='youtube'?'active-yt':name==='mlb'?'active-mlb':'active-bm');
+  if (tab) tab.classList.add(name==='mlb'?'active-mlb':'active-bm');
   if (name==='bookmarks') renderBm();
   if (name==='admin') renderAdmTable();
   if (name==='mlb') renderMlbGrid();
-  document.getElementById('fetchBtn').style.display = name==='youtube' ? '' : 'none';
-  // URL 해시 업데이트 (새로고침 시 페이지 유지)
   history.replaceState(null, '', '#' + name);
 }
 
@@ -922,7 +888,7 @@ function setMlbCategory(cat, el) {
   curMlbCategory = cat;
   document.querySelectorAll('#mlbCategoryTabs .topic-tab').forEach(t => t.classList.remove('on'));
   if (el) el.classList.add('on');
-  const labels = { all: '전체 게시물', movie: '영화 게시물', broadcast: '방송 게시물', cartoon: '만화 게시물', nineteen: '19금 게시물' };
+  const labels = { all: '전체 게시물', movie: '영화', broadcast: '방송', cartoon: '만화', it: 'IT', humor: '유머', jjal: '짤방', pmgl: '펌글', idol: '아이돌' };
   const label = document.getElementById('mlbSecLabel');
   if (label) label.textContent = labels[cat] || '전체 게시물';
   renderMlbGrid();
@@ -963,15 +929,16 @@ function buildMlbCard(p) {
     ytVid = u.includes('embed/') ? u.split('embed/')[1].split('?')[0] : '';
   }
 
-  // 썸네일 결정: poster > YouTube 썸네일 > mp4 첫프레임 > 빈칸
-  const posterSrc = p.thumb && !p.thumb.startsWith('https://img.youtube.com')
-    ? `/api/proxy?url=${encodeURIComponent(p.thumb)}` : p.thumb || '';
+  // 썸네일 결정: poster > YouTube 썸네일 > mp4 첫프레임 > 본문 첫 이미지 > 빈칸
+  // 이미지는 직접 로드 (프록시 제거로 Vercel 트래픽 절약)
+  const posterSrc = p.thumb || '';
   const ytThumb = ytVid ? `https://img.youtube.com/vi/${ytVid}/mqdefault.jpg` : '';
+  const firstImage = (p.images && p.images.length > 0) ? p.images[0] : '';
 
   let thumbHtml;
   if (mp4Videos.length > 0) {
     const proxyUrl = `/api/proxy?url=${encodeURIComponent(mp4Videos[0])}`;
-    const poster = posterSrc ? `poster="${posterSrc}"` : '';
+    const poster = posterSrc ? `poster="${posterSrc}"` : (firstImage ? `poster="${firstImage}"` : '');
     thumbHtml = `<video preload="metadata" muted playsinline ${poster} style="width:100%;height:100%;object-fit:cover;pointer-events:none;" onloadedmetadata="this.currentTime=0.1">
       <source src="${proxyUrl}" type="video/mp4">
     </video>`;
@@ -979,9 +946,14 @@ function buildMlbCard(p) {
     thumbHtml = `<img src="${posterSrc}" alt="" loading="lazy" onerror="this.style.display='none'">`;
   } else if (ytThumb) {
     thumbHtml = `<img src="${ytThumb}" alt="" loading="lazy">`;
+  } else if (firstImage) {
+    thumbHtml = `<img src="${firstImage}" alt="" loading="lazy" onerror="this.style.display='none'">`;
   } else {
-    thumbHtml = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px;">영상</div>`;
+    thumbHtml = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px;">게시물</div>`;
   }
+
+  const tagLabels = { movie: '영화', broadcast: '방송', cartoon: '만화' };
+  const tagLabel = tagLabels[p.tag] || p.tag || '';
   const rawSummary = p.summary ? p.summary
     .replace(/Video\s*태그를\s*지원하지\s*않는\s*브라우저입니다\.?/gi, '')
     .replace(/추천\d+공유/g, '').replace(/추천\s*\d+/g, '')
@@ -993,7 +965,7 @@ function buildMlbCard(p) {
       ${thumbHtml}
       <div class="play-ov"><div class="play-circle" style="background:linear-gradient(135deg,var(--mlb),#2563eb);"><div class="play-tri"></div></div></div>
       <span class="platform-badge badge-mlb">MLB</span>
-      <span style="position:absolute;top:8px;left:52px;font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:rgba(0,0,0,0.6);color:#fff;">${p.tag==='방송'?'방송':'영화'}</span>
+      <span style="position:absolute;top:8px;left:52px;font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:rgba(0,0,0,0.6);color:#fff;">${tagLabel}</span>
       <button class="like-btn${liked?' liked':''}" onclick="toggleMlbLike(event,'${p.post_id}')">♥ ${p.like_count||0}</button>
       <button class="bm-btn${saved?' saved':''}" onclick="toggleMlbBm(event,'${p.post_id}')">☆</button>
     </div>
@@ -1100,24 +1072,22 @@ async function openMlbModal(postId) {
       const isMlb = url.includes('mlbpark.donga.com') || url.includes('image.donga.com') || url.includes('simg.donga.com') || url.includes('donga.com') || url.includes('tpzlfh.uk');
       const proxyUrl = isMlb ? `/api/proxy?url=${encodeURIComponent(url)}` : url;
       return `<div style="margin-bottom:10px;">
-        <video controls preload="metadata" style="width:100%;border-radius:8px;background:#000;display:block;"
-          onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+        <video controls preload="metadata" style="width:100%;border-radius:8px;background:#000;display:block;">
           <source src="${proxyUrl}" type="video/mp4">
         </video>
-        <a href="${url}" target="_blank" style="display:block;text-align:center;margin-top:6px;font-size:12px;color:var(--accent);text-decoration:none;">▶ 영상이 재생되지 않으면 여기서 보기 ↗</a>
       </div>`;
     }).join('');
   }
 
-  // 이미지들 표시
+  // 이미지들 표시 (직접 로드 - 프록시 제거)
   const images = p.images || [];
   if (images.length > 0) {
     contentHtml += images.map(src =>
-      `<img src="${src}" alt="" style="width:100%;border-radius:8px;margin-bottom:8px;max-height:400px;object-fit:contain;" onerror="this.style.display='none'">`
+      `<img src="${src}" alt="" style="width:100%;border-radius:8px;margin-bottom:8px;max-height:500px;object-fit:contain;" onerror="this.style.display='none'">`
     ).join('');
   }
 
-  // 아무것도 없으면 썸네일
+  // 아무것도 없으면 썸네일 직접 로드
   if (!contentHtml && p.thumb) {
     contentHtml = `<img src="${p.thumb}" alt="" style="width:100%;border-radius:8px;margin-bottom:8px;">`;
   }

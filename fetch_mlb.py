@@ -61,26 +61,157 @@ def get_existing_post_ids():
     data = res.json()
     return set(item['post_id'] for item in data)
 
-SEARCH_CATEGORIES = ['영화', '방송', '만화', '19금']
+def get_latest_post_date():
+    """Supabase에서 가장 최근 저장된 게시물 날짜 조회"""
+    res = requests.get(
+        f'{SUPABASE_URL}/rest/v1/mlb_posts?select=created_at&order=created_at.desc&limit=1',
+        headers=HEADERS
+    )
+    data = res.json()
+    if data:
+        date_str = data[0]['created_at'][:10]
+        return datetime.strptime(date_str, '%Y-%m-%d').replace(tzinfo=KST)
+    return None
 
-def fetch_posts(session, pages=3):
+SEARCH_CATEGORIES = ['영화', '방송', '만화', 'IT', '유머', '짤방', '펌글', '아이돌']
+SEARCH_KEYWORDS = ['ai', 'a.i', 'a,i']
+
+TAG_MAP = {
+    '영화': 'movie',
+    '방송': 'broadcast',
+    '만화': 'cartoon',
+    'IT': 'it',
+    '유머': 'humor',
+    '짤방': 'jjal',
+    '펌글': 'pmgl',
+    '아이돌': 'idol'
+}
+
+def fetch_posts(session, cutoff_date):
+    """cutoff_date 이후 게시물만 수집"""
     posts = []
     seen_ids = set()
 
     for category in SEARCH_CATEGORIES:
-        print(f'\n[{category}] 말머리 검색 시작')
-        for page in range(1, pages + 1):
-            params = {
-                'select': 'spf',
-                'subselect': 'sct',
-                'm': 'search',
-                'b': 'bullpen',
-                'search_select2': 'spf',
-                'query': category,
-                'search_select3': 'sct',
-                'subquery': 'ai',
-                'p': page
-            }
+        for keyword in SEARCH_KEYWORDS:
+            print(f'\n[{category}] 키워드 "{keyword}" 검색 시작')
+            for page in range(1, 20):  # 최대 20페이지
+                params = {
+                    'select': 'spf',
+                    'subselect': 'sct',
+                    'm': 'search',
+                    'b': 'bullpen',
+                    'search_select2': 'spf',
+                    'query': category,
+                    'search_select3': 'sct',
+                    'subquery': keyword,
+                    'p': page
+                }
+                res = session.get(BOARD_URL, params=params)
+                if res.status_code != 200:
+                    break
+
+                soup = BeautifulSoup(res.text, 'html.parser')
+                table = soup.select_one('table.tbl_type01')
+                if not table:
+                    break
+
+                rows = table.select('tbody tr') or table.select('tr')
+                if not rows:
+                    break
+
+                page_has_valid = False
+                stop_category = False
+
+                for row in rows:
+                    try:
+                        first_td = row.select_one('td')
+                        if first_td and first_td.get_text(strip=True) == '공지':
+                            continue
+
+                        # 날짜 추출 - 모든 td에서 YYYY-MM-DD 형식 찾기
+                        post_date = None
+                        date_str = ''
+                        for td in row.select('td'):
+                            txt = td.get_text(strip=True)
+                            if len(txt) == 10 and txt.count('-') == 2:
+                                try:
+                                    post_date = datetime.strptime(txt, '%Y-%m-%d').replace(tzinfo=KST)
+                                    date_str = txt
+                                    break
+                                except:
+                                    pass
+
+                        # 날짜가 cutoff보다 오래됐으면 이 카테고리+키워드 검색 종료
+                        if post_date and post_date < cutoff_date:
+                            stop_category = True
+                            break
+
+                        title_el = (row.select_one('a[href*="m=view"]') or
+                                   row.select_one('td.t_left a') or
+                                   row.select_one('a[href*="bullpen"]'))
+                        if not title_el:
+                            continue
+
+                        title = title_el.get_text(strip=True)
+                        if not title or len(title) < 2:
+                            continue
+
+                        href = title_el.get('href', '')
+                        url = href if href.startswith('http') else (BASE_URL + href if href.startswith('/') else BASE_URL + '/' + href)
+
+                        post_id = ''
+                        if 'id=' in url:
+                            post_id = url.split('id=')[1].split('&')[0]
+                        if not post_id:
+                            import hashlib
+                            post_id = hashlib.md5(url.encode()).hexdigest()[:12]
+
+                        if post_id in seen_ids:
+                            continue
+                        seen_ids.add(post_id)
+                        page_has_valid = True
+
+                        # 작성자
+                        author = ''
+                        author_el = row.select_one('[data-unick]')
+                        if author_el:
+                            import urllib.parse
+                            author = urllib.parse.unquote(author_el.get('data-unick', ''))
+                        if not author:
+                            td_author = row.select_one('td:nth-child(3) a') or row.select_one('td:nth-child(3)')
+                            author = td_author.get_text(strip=True) if td_author else '익명'
+
+                        # 썸네일 (프로필 이미지 제외)
+                        thumb_el = row.select_one('img:not([src*="btn"]):not([src*="ico"])')
+                        thumb = ''
+                        if thumb_el:
+                            src = thumb_el.get('src', '')
+                            if src and not src.startswith('http'):
+                                src = BASE_URL + src
+                            if src and not any(x in src for x in ['Profile', 'profile', 'logo', 'btn', 'ico', 'ugc/WWW']):
+                                thumb = src
+
+                        posts.append({
+                            'post_id': post_id,
+                            'title': title,
+                            'url': url,
+                            'author': author,
+                            'thumb': thumb,
+                            'category': category,
+                            'post_date': date_str
+                        })
+                        print(f'  발견: [{category}] {title[:40]}')
+
+                    except Exception as e:
+                        print(f'행 파싱 오류: {e}')
+                        continue
+
+                if stop_category or not page_has_valid:
+                    print(f'  [{category}/{keyword}] 날짜 범위 초과 또는 결과 없음, 중단')
+                    break
+
+    return posts
             res = session.get(BOARD_URL, params=params)
             if res.status_code != 200:
                 print(f'페이지 {page} 로드 실패: {res.status_code}')
@@ -311,8 +442,19 @@ def main():
     existing = get_existing_post_ids()
     print(f'기존 게시물 수: {len(existing)}개')
 
-    posts = fetch_posts(session, pages=3)
-    print(f'AI 키워드 게시물 발견: {len(posts)}개')
+    # 날짜 범위 결정
+    latest_date = get_latest_post_date()
+    if latest_date:
+        # 이후 실행: 마지막 저장 날짜 이후만
+        cutoff_date = latest_date
+        print(f'기준 날짜: {cutoff_date.strftime("%Y-%m-%d")} 이후 (신규만)')
+    else:
+        # 첫 실행: 1달치
+        cutoff_date = datetime.now(KST) - timedelta(days=30)
+        print(f'첫 실행: {cutoff_date.strftime("%Y-%m-%d")} 이후 1달치 수집')
+
+    posts = fetch_posts(session, cutoff_date)
+    print(f'\n총 게시물 발견: {len(posts)}개')
 
     new_posts = [p for p in posts if p['post_id'] not in existing]
     print(f'신규 게시물: {len(new_posts)}개')
@@ -337,11 +479,10 @@ def main():
             video_urls = p.get('video_urls', [])
             images = p.get('images', [])
 
-            if not video_urls:
-                print(f'  영상 없음, 스킵: {p["title"][:30]}')
+            if not video_urls and not images:
+                print(f'  영상/이미지 없음, 스킵: {p["title"][:30]}')
                 continue
 
-            tag_map = {'영화': 'movie', '방송': 'broadcast', '만화': 'cartoon', '19금': 'nineteen'}
             enriched.append({
                 'post_id': p['post_id'],
                 'title': p['title'],
@@ -352,7 +493,7 @@ def main():
                 'thumb': p.get('thumb', ''),
                 'url': p['url'],
                 'author': p['author'],
-                'tag': tag_map.get(category, category),
+                'tag': TAG_MAP.get(category, category),
                 'status': 'approved',
                 'created_at': datetime.now(KST).strftime('%Y-%m-%d %H:%M:%S+09')
             })
