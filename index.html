@@ -33,8 +33,8 @@ body { background: var(--bg); color: var(--text); font-family: 'Noto Sans KR', s
 body::before { content: ''; position: fixed; inset: 0; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.025) 2px, rgba(0,0,0,0.025) 4px); pointer-events: none; z-index: 0; }
 
 /* NAV */
-nav { position: sticky; top: 0; z-index: 100; background: rgba(15,8,8,0.95); backdrop-filter: blur(16px); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 1.5rem; height: 56px; gap: 1rem; }
-.logo { font-family: 'Bebas Neue'; font-size: 26px; letter-spacing: 5px; cursor: pointer; flex-shrink: 0; }
+nav { position: sticky; top: 0; z-index: 100; background: rgba(15,8,8,0.95); backdrop-filter: blur(16px); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 1.5rem; height: 56px; gap: 1rem; overflow: hidden; }
+.logo { font-family: 'Bebas Neue'; font-size: 26px; letter-spacing: 5px; cursor: pointer; flex-shrink: 0; white-space: nowrap; }
 .logo-ai { color: #fff; }
 .logo-gathering { background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 .nav-platform-tabs { display: flex; gap: 4px; }
@@ -441,6 +441,7 @@ function checkGate() {
     sessionStorage.setItem(GATE_KEY, '1');
     document.getElementById('passwordGate').style.display = 'none';
     errEl.textContent = '';
+    init();
   } else {
     errEl.textContent = '비밀번호가 틀렸습니다.';
     document.getElementById('gateInput').value = '';
@@ -448,11 +449,10 @@ function checkGate() {
   }
 }
 
-// 이미 인증된 경우 게이트 숨기기
+// 세션 내 인증 확인 (탭 닫으면 초기화)
 if (sessionStorage.getItem(GATE_KEY) === '1') {
   document.getElementById('passwordGate').style.display = 'none';
 } else {
-  // 게이트가 열려있으면 나머지 초기화 막기
   document.getElementById('gateInput').focus();
 }
 
@@ -846,12 +846,13 @@ function changeGatePw() {
     st.textContent = '4자 이상 입력해주세요.'; st.style.color='#f87171'; st.style.display='block'; return;
   }
   localStorage.setItem('aigathering_gate_pw', newPw);
+  sessionStorage.removeItem(GATE_KEY);
   const el = document.getElementById('currentGatePwDisplay');
   if (el) el.textContent = newPw;
   document.getElementById('newGatePw').value = '';
-  st.textContent = '✓ 입장 비밀번호가 변경됐습니다: ' + newPw;
+  st.textContent = '✓ 변경됨: ' + newPw + ' (지인들에게 공유하세요)';
   st.style.color='#6ee7b7'; st.style.display='block';
-  setTimeout(() => st.style.display='none', 3000);
+  setTimeout(() => st.style.display='none', 5000);
   toast('입장 비밀번호 변경됨');
 }
 
@@ -1226,17 +1227,25 @@ async function openMlbModal(postId) {
       }
     });
 
-    // embed 태그 → X 영상 iframe 처리
+    // embed 태그 → X 영상 프록시 처리
     body.querySelectorAll('embed').forEach(embed => {
       const src = embed.getAttribute('src') || '';
       if (src.includes('twitter.com/i/videos') || src.includes('x.com/i/videos')) {
         const fullSrc = src.startsWith('//') ? 'https:' + src : src;
-        const iframe = document.createElement('iframe');
-        iframe.setAttribute('src', fullSrc);
-        iframe.setAttribute('allowfullscreen', '');
-        iframe.setAttribute('scrolling', 'no');
-        iframe.style.cssText = 'width:100%;aspect-ratio:16/9;border:none;border-radius:8px;display:block;margin-bottom:10px;';
-        embed.parentNode.replaceChild(iframe, embed);
+        const proxyUrl = `/api/proxy?url=${encodeURIComponent(fullSrc)}`;
+        const videoEl = document.createElement('video');
+        videoEl.setAttribute('controls', '');
+        videoEl.setAttribute('preload', 'metadata');
+        videoEl.style.cssText = 'width:100%;border-radius:8px;background:#000;display:block;margin-bottom:10px;';
+        const source = document.createElement('source');
+        source.setAttribute('src', proxyUrl);
+        source.setAttribute('type', 'video/mp4');
+        videoEl.appendChild(source);
+        // 실패 시 X 링크로 fallback
+        const videoId = fullSrc.split('/').pop();
+        const xUrl = `https://x.com/i/videos/${videoId}`;
+        videoEl.setAttribute('onerror', `this.outerHTML='<a href="${xUrl}" target="_blank" style="display:block;padding:12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:var(--accent);text-decoration:none;font-size:13px;margin-bottom:10px;">🐦 X에서 영상 보기 ↗</a>'`);
+        embed.parentNode.replaceChild(videoEl, embed);
       } else {
         embed.remove();
       }
@@ -1394,7 +1403,10 @@ async function deleteMlbCmt(cmtId, postId) {
   await loadMlbCmts(postId); toast('댓글 삭제됨');
 }
 
-init();
+// 세션 인증된 경우에만 init 실행
+if (sessionStorage.getItem(GATE_KEY) === '1') {
+  init();
+}
 </script>
 </body>
 </html>
