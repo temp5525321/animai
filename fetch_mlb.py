@@ -75,7 +75,7 @@ def get_latest_post_date():
         return datetime.strptime(date_str, '%Y-%m-%d').replace(tzinfo=KST)
     return None
 
-SEARCH_CATEGORIES = ['영화', '방송', '만화', 'IT', '유머', '짤방', '펌글', '아이돌', '17금', '19금', '주번나']
+SEARCH_CATEGORIES = ['영화', '방송', '만화', 'IT', '유머', '짤방', '펌글', '아이돌']
 
 TAG_MAP = {
     '영화': 'movie',
@@ -85,10 +85,7 @@ TAG_MAP = {
     '유머': 'humor',
     '짤방': 'jjal',
     '펌글': 'pmgl',
-    '아이돌': 'idol',
-    '17금': 'seventeen',
-    '19금': 'nineteen',
-    '주번나': 'nsfw'
+    '아이돌': 'idol'
 }
 
 def fetch_posts(session, cutoff_date):
@@ -129,6 +126,9 @@ def fetch_posts(session, cutoff_date):
 
             page_has_post = False
             reached_cutoff = False
+            _today = datetime.now(KST)
+            _today_str = _today.strftime('%Y-%m-%d')
+            _cur_year = _today.year
 
             for row in rows:
                 try:
@@ -136,13 +136,13 @@ def fetch_posts(session, cutoff_date):
                     if first_td and first_td.get_text(strip=True) == '공지':
                         continue
 
-                    # 날짜 추출 - m=list 페이지는 오늘글은 HH:MM, 오래된글은 YYYY-MM-DD 또는 YY-MM-DD
+                    # 날짜 추출 - m=list 날짜 형식 3가지:
+                    # HH:MM (오늘글), MM-DD (올해글), YYYY-MM-DD (작년이전글)
                     post_date = None
                     date_str = ''
-                    today = datetime.now(KST).strftime('%Y-%m-%d')
                     for td in row.select('td'):
                         txt = td.get_text(strip=True)
-                        # YYYY-MM-DD 형식
+                        # YYYY-MM-DD
                         if len(txt) == 10 and txt.count('-') == 2:
                             try:
                                 post_date = datetime.strptime(txt, '%Y-%m-%d').replace(tzinfo=KST)
@@ -150,21 +150,32 @@ def fetch_posts(session, cutoff_date):
                                 break
                             except:
                                 pass
-                        # HH:MM 형식 (오늘 작성된 글)
-                        elif len(txt) == 5 and txt.count(':') == 1:
+                        # MM-DD (올해)
+                        elif len(txt) == 5 and txt.count('-') == 1:
                             try:
-                                datetime.strptime(txt, '%H:%M')
-                                post_date = datetime.now(KST).replace(hour=0, minute=0, second=0, microsecond=0)
-                                date_str = today
+                                pd = datetime.strptime(f'{_cur_year}-{txt}', '%Y-%m-%d').replace(tzinfo=KST)
+                                if pd > _today:  # 미래면 작년
+                                    pd = pd.replace(year=_cur_year - 1)
+                                post_date = pd
+                                date_str = pd.strftime('%Y-%m-%d')
                                 break
                             except:
                                 pass
-                        # HH:MM:SS 형식
+                        # HH:MM (오늘)
+                        elif len(txt) == 5 and txt.count(':') == 1:
+                            try:
+                                datetime.strptime(txt, '%H:%M')
+                                post_date = _today.replace(hour=0, minute=0, second=0, microsecond=0)
+                                date_str = _today_str
+                                break
+                            except:
+                                pass
+                        # HH:MM:SS (오늘)
                         elif len(txt) == 8 and txt.count(':') == 2:
                             try:
                                 datetime.strptime(txt, '%H:%M:%S')
-                                post_date = datetime.now(KST).replace(hour=0, minute=0, second=0, microsecond=0)
-                                date_str = today
+                                post_date = _today.replace(hour=0, minute=0, second=0, microsecond=0)
+                                date_str = _today_str
                                 break
                             except:
                                 pass
