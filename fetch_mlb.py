@@ -64,9 +64,9 @@ def get_existing_post_ids():
     return set(item['post_id'] for item in data)
 
 def get_latest_post_date():
-    """Supabase에서 가장 최근 게시물의 post_date 조회"""
+    """Supabase에서 가장 최근 게시물의 post_date 조회 (deleted 제외)"""
     res = requests.get(
-        f'{SUPABASE_URL}/rest/v1/mlb_posts?select=post_date&order=post_date.desc&limit=1',
+        f'{SUPABASE_URL}/rest/v1/mlb_posts?select=post_date&status=neq.deleted&order=post_date.desc&limit=1',
         headers=HEADERS
     )
     data = res.json()
@@ -100,7 +100,7 @@ def fetch_posts(session, cutoff_date):
     for category in SEARCH_CATEGORIES:
         for keyword in SEARCH_KEYWORDS:
             print(f'\n[{category}] 키워드 "{keyword}" 검색 시작')
-            for page in range(1, 20):  # 최대 20페이지
+            for page in range(1, 100):  # 최대 100페이지 (날짜 범위 초과 시 자동 중단)
                 params = {
                     'select': 'spf',
                     'subselect': 'sct',
@@ -372,7 +372,7 @@ def fetch_post_detail(session, post):
                 if u not in seen:
                     seen.add(u)
                     unique_urls.append(u)
-            post['video_urls'] = unique_urls[:5]
+            post['video_urls'] = unique_urls
 
             # YouTube 영상이 있으면 썸네일 추출 (항상 덮어씌움)
             for u in unique_urls:
@@ -422,23 +422,26 @@ def main():
         session = requests.Session()
         session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36'})
 
+    # 기존 게시물 ID 전체 조회 (deleted 포함, 중복/재수집 방지)
     existing = get_existing_post_ids()
     print(f'기존 게시물 수: {len(existing)}개')
 
-    # 날짜 범위 결정
+    # 날짜 기준 결정
+    # - DB에 데이터 있으면: 가장 최신 post_date 이후 신규만
+    # - DB 비어있으면: 오늘 기준 30일 전부터
     latest_date = get_latest_post_date()
     if latest_date:
-        # 이후 실행: 마지막 저장 날짜 이후만
         cutoff_date = latest_date
-        print(f'기준 날짜: {cutoff_date.strftime("%Y-%m-%d")} 이후 (신규만)')
+        print(f'기준 날짜: {cutoff_date.strftime("%Y-%m-%d")} 이후 신규 전부 수집')
     else:
-        # 첫 실행: 1달치
         cutoff_date = datetime.now(KST) - timedelta(days=30)
-        print(f'첫 실행: {cutoff_date.strftime("%Y-%m-%d")} 이후 1달치 수집')
+        print(f'기준 날짜: {cutoff_date.strftime("%Y-%m-%d")} 이후 30일치 전부 수집')
 
+    # 목록 수집
     posts = fetch_posts(session, cutoff_date)
     print(f'\n총 게시물 발견: {len(posts)}개')
 
+    # 기존에 없는 것만 필터링
     new_posts = [p for p in posts if p['post_id'] not in existing]
     print(f'신규 게시물: {len(new_posts)}개')
 
@@ -446,7 +449,7 @@ def main():
         print('새로운 게시물이 없습니다.')
         return
 
-    # 카테고리별 상세 크롤링 (제한 없음)
+    # 상세 크롤링 - 제한 없이 전부
     from collections import defaultdict
     category_posts = defaultdict(list)
     for p in new_posts:
@@ -455,12 +458,11 @@ def main():
 
     enriched = []
     for category, cat_posts in category_posts.items():
-        print(f'\n[{category}] 상세 크롤링 시작 ({len(cat_posts)}개 신규)')
+        print(f'\n[{category}] 상세 크롤링 시작 ({len(cat_posts)}개)')
         cat_saved = 0
-        for p in cat_posts:  # 제한 없이 전부 처리
+        for p in cat_posts:
             p = fetch_post_detail(session, p)
             video_urls = p.get('video_urls', [])
-            images = p.get('images', [])
 
             if not video_urls:
                 print(f'  영상 없음, 스킵: {p["title"][:30]}')
@@ -471,7 +473,7 @@ def main():
                 'title': p['title'],
                 'summary': p.get('summary', ''),
                 'content_html': p.get('content_html', ''),
-                'images': images,
+                'images': p.get('images', []),
                 'video_urls': video_urls,
                 'thumb': p.get('thumb', ''),
                 'url': p['url'],
@@ -483,6 +485,10 @@ def main():
             })
             cat_saved += 1
         print(f'  [{category}] {cat_saved}개 저장 예정')
+
+    if not enriched:
+        print('저장할 게시물이 없습니다.')
+        return
 
     success = insert_posts(enriched)
     if success:
