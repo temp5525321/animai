@@ -250,9 +250,6 @@ footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center;
     <button class="topic-tab" onclick="setMlbCategory('jjal',this)">짤방</button>
     <button class="topic-tab" onclick="setMlbCategory('pmgl',this)">펌글</button>
     <button class="topic-tab" onclick="setMlbCategory('idol',this)">아이돌</button>
-    <button class="topic-tab" onclick="setMlbCategory('seventeen',this)">17금</button>
-    <button class="topic-tab" onclick="setMlbCategory('nineteen',this)">19금</button>
-    <button class="topic-tab" onclick="setMlbCategory('nsfw',this)">주번나</button>
   </div>
 
   <div class="toolbar">
@@ -374,9 +371,6 @@ footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center;
         <button class="topic-tab" onclick="setMlbAdmFilter('jjal',this)">짤방</button>
         <button class="topic-tab" onclick="setMlbAdmFilter('pmgl',this)">펌글</button>
         <button class="topic-tab" onclick="setMlbAdmFilter('idol',this)">아이돌</button>
-        <button class="topic-tab" onclick="setMlbAdmFilter('seventeen',this)">17금</button>
-        <button class="topic-tab" onclick="setMlbAdmFilter('nineteen',this)">19금</button>
-        <button class="topic-tab" onclick="setMlbAdmFilter('nsfw',this)">주번나</button>
       </div>
       <div style="overflow-x:auto;margin-bottom:0.5rem;">
         <table class="admin-table">
@@ -1003,7 +997,7 @@ async function renderMlbAdmTable() {
   const total = list.length;
   const totalPages = Math.max(1, Math.ceil(total / MLB_ADM_PER_PAGE));
   const paged = list.slice((mlbAdmPage-1)*MLB_ADM_PER_PAGE, mlbAdmPage*MLB_ADM_PER_PAGE);
-  const tagLabels = { movie:'영화', broadcast:'방송', cartoon:'만화', it:'IT', humor:'유머', jjal:'짤방', pmgl:'펌글', idol:'아이돌', seventeen:'17금', nineteen:'19금', nsfw:'주번나' };
+  const tagLabels = { movie:'영화', broadcast:'방송', cartoon:'만화', it:'IT', humor:'유머', jjal:'짤방', pmgl:'펌글', idol:'아이돌' };
 
   if (!paged.length) {
     document.getElementById('mlbAdmTbody').innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:1rem;">게시물이 없습니다.</td></tr>`;
@@ -1069,7 +1063,7 @@ function setMlbCategory(cat, el) {
   curMlbCategory = cat;
   document.querySelectorAll('#mlbCategoryTabs .topic-tab').forEach(t => t.classList.remove('on'));
   if (el) el.classList.add('on');
-  const labels = { all: '전체 게시물', movie: '영화', broadcast: '방송', cartoon: '만화', it: 'IT', humor: '유머', jjal: '짤방', pmgl: '펌글', idol: '아이돌', seventeen:'17금', nineteen:'19금', nsfw:'주번나' };
+  const labels = { all: '전체 게시물', movie: '영화', broadcast: '방송', cartoon: '만화', it: 'IT', humor: '유머', jjal: '짤방', pmgl: '펌글', idol: '아이돌' };
   const label = document.getElementById('mlbSecLabel');
   if (label) label.textContent = labels[cat] || '전체 게시물';
   renderMlbGrid();
@@ -1135,7 +1129,7 @@ function buildMlbCard(p) {
     thumbHtml = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px;">게시물</div>`;
   }
 
-  const tagLabels = { movie: '영화', broadcast: '방송', cartoon: '만화', it: 'IT', humor: '유머', jjal: '짤방', pmgl: '펌글', idol: '아이돌', seventeen:'17금', nineteen:'19금', nsfw:'주번나' };
+  const tagLabels = { movie: '영화', broadcast: '방송', cartoon: '만화', it: 'IT', humor: '유머', jjal: '짤방', pmgl: '펌글', idol: '아이돌' };
   const tagLabel = tagLabels[p.tag] || p.tag || '';
   const rawSummary = p.summary ? p.summary
     .replace(/Video\s*태그를\s*지원하지\s*않는\s*브라우저입니다\.?/gi, '')
@@ -1205,7 +1199,7 @@ async function openMlbModal(postId) {
   const p = mlbPosts.find(p=>p.post_id===postId); if(!p) return;
   curMlbModalId = postId;
   document.getElementById('mlbModalTitle').textContent = p.title;
-  const tagLabels2 = { movie:'영화', broadcast:'방송', cartoon:'만화', it:'IT', humor:'유머', jjal:'짤방', pmgl:'펌글', idol:'아이돌', seventeen:'17금', nineteen:'19금', nsfw:'주번나' };
+  const tagLabels2 = { movie:'영화', broadcast:'방송', cartoon:'만화', it:'IT', humor:'유머', jjal:'짤방', pmgl:'펌글', idol:'아이돌' };
   document.getElementById('mlbModalTag').textContent = (tagLabels2[p.tag]||p.tag||'') + ' · AI';
   document.getElementById('mlbModalAuthor').textContent = p.author||'익명';
   document.getElementById('mlbModalDate').textContent = (p.post_date||p.created_at||'').slice(0,10);
