@@ -1355,19 +1355,23 @@ async function openMlbModal(postId) {
 
   thumbEl.innerHTML = contentHtml;
 
-  // 본문 요약 텍스트 (추천/공유 등 UI 텍스트 제거)
-  const rawSummary = p.summary || '';
-  const cleanSummary = rawSummary
-    .replace(/Video\s*태그를\s*지원하지\s*않는\s*브라우저입니다\.?/gi, '')
-    .replace(/추천\d+공유/g, '')
-    .replace(/추천\s*\d+/g, '')
-    .replace(/공유\s*\d*/g, '')
-    .replace(/신고\s*\d*/g, '')
-    .replace(/\s{2,}/g, ' ')
-    .trim();
+  // 본문 요약 텍스트 - content_html이 있으면 중복이므로 숨김
   const summaryEl = document.getElementById('mlbModalSummary');
-  summaryEl.style.display = cleanSummary ? 'block' : 'none';
-  summaryEl.textContent = cleanSummary;
+  if (p.content_html) {
+    summaryEl.style.display = 'none';
+  } else {
+    const rawSummary = p.summary || '';
+    const cleanSummary = rawSummary
+      .replace(/Video\s*태그를\s*지원하지\s*않는\s*브라우저입니다\.?/gi, '')
+      .replace(/추천\d+공유/g, '')
+      .replace(/추천\s*\d+/g, '')
+      .replace(/공유\s*\d*/g, '')
+      .replace(/신고\s*\d*/g, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+    summaryEl.style.display = cleanSummary ? 'block' : 'none';
+    summaryEl.textContent = cleanSummary;
+  }
 
   document.getElementById('mlbModal').classList.add('open');
   await loadMlbCmts(postId);
