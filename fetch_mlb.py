@@ -85,7 +85,7 @@ TAG_MAP = {
     '유머': 'humor',
     '짤방': 'jjal',
     '펌글': 'pmgl',
-    '아이돌': 'idol'
+    '아이돌': 'idol',
     '17금': 'seventeen',
     '19금': 'nineteen',
     '주번나': 'nsfw'
