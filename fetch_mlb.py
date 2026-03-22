@@ -55,8 +55,9 @@ def login():
 
 def get_existing_post_ids():
     # deleted 포함 전체 post_id 조회 (삭제된 게시물 재수집 방지)
+    # Supabase 기본 limit 1000 우회
     res = requests.get(
-        f'{SUPABASE_URL}/rest/v1/mlb_posts?select=post_id',
+        f'{SUPABASE_URL}/rest/v1/mlb_posts?select=post_id&limit=10000',
         headers=HEADERS
     )
     data = res.json()
@@ -445,7 +446,7 @@ def main():
         print('새로운 게시물이 없습니다.')
         return
 
-    # 카테고리별로 최대 10개씩 처리
+    # 카테고리별 상세 크롤링 (제한 없음)
     from collections import defaultdict
     category_posts = defaultdict(list)
     for p in new_posts:
@@ -456,7 +457,7 @@ def main():
     for category, cat_posts in category_posts.items():
         print(f'\n[{category}] 상세 크롤링 시작 ({len(cat_posts)}개 신규)')
         cat_saved = 0
-        for p in cat_posts[:20]:  # 카테고리당 최대 20개 시도해서 10개 채우기
+        for p in cat_posts:  # 제한 없이 전부 처리
             p = fetch_post_detail(session, p)
             video_urls = p.get('video_urls', [])
             images = p.get('images', [])
@@ -481,8 +482,6 @@ def main():
                 'created_at': datetime.now(KST).strftime('%Y-%m-%d %H:%M:%S+09')
             })
             cat_saved += 1
-            if cat_saved >= 10:
-                break
         print(f'  [{category}] {cat_saved}개 저장 예정')
 
     success = insert_posts(enriched)
