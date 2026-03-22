@@ -127,8 +127,8 @@ def fetch_posts(session, cutoff_date):
                 print(f'  [{category}] 페이지 {page} 행 없음, 중단')
                 break
 
-            page_has_post = False   # 이 페이지에 게시물이 하나라도 있는지
-            reached_cutoff = False  # cutoff 날짜 이전 글을 만났는지
+            page_has_post = False
+            reached_cutoff = False
 
             for row in rows:
                 try:
@@ -136,15 +136,35 @@ def fetch_posts(session, cutoff_date):
                     if first_td and first_td.get_text(strip=True) == '공지':
                         continue
 
-                    # 날짜 추출
+                    # 날짜 추출 - m=list 페이지는 오늘글은 HH:MM, 오래된글은 YYYY-MM-DD 또는 YY-MM-DD
                     post_date = None
                     date_str = ''
+                    today = datetime.now(KST).strftime('%Y-%m-%d')
                     for td in row.select('td'):
                         txt = td.get_text(strip=True)
+                        # YYYY-MM-DD 형식
                         if len(txt) == 10 and txt.count('-') == 2:
                             try:
                                 post_date = datetime.strptime(txt, '%Y-%m-%d').replace(tzinfo=KST)
                                 date_str = txt
+                                break
+                            except:
+                                pass
+                        # HH:MM 형식 (오늘 작성된 글)
+                        elif len(txt) == 5 and txt.count(':') == 1:
+                            try:
+                                datetime.strptime(txt, '%H:%M')
+                                post_date = datetime.now(KST).replace(hour=0, minute=0, second=0, microsecond=0)
+                                date_str = today
+                                break
+                            except:
+                                pass
+                        # HH:MM:SS 형식
+                        elif len(txt) == 8 and txt.count(':') == 2:
+                            try:
+                                datetime.strptime(txt, '%H:%M:%S')
+                                post_date = datetime.now(KST).replace(hour=0, minute=0, second=0, microsecond=0)
+                                date_str = today
                                 break
                             except:
                                 pass
@@ -221,13 +241,13 @@ def fetch_posts(session, cutoff_date):
                     print(f'행 파싱 오류: {e}')
                     continue
 
-            # 이 페이지 전체가 cutoff 이전 글이면 다음 카테고리로
-            if reached_cutoff and not page_has_post:
-                print(f'  [{category}] 페이지 {page}: cutoff 이전 글만 있음, 중단')
+            # cutoff 이전 글을 만났으면 이 카테고리 순회 종료 (목록은 최신순)
+            if reached_cutoff:
+                print(f'  [{category}] 페이지 {page}: cutoff 날짜 도달, 중단')
                 break
 
-            # 게시물 자체가 없으면 (마지막 페이지)
-            if not page_has_post and not reached_cutoff:
+            # 이 페이지에 게시물이 하나도 없으면 마지막 페이지
+            if not page_has_post:
                 print(f'  [{category}] 페이지 {page}: 게시물 없음, 중단')
                 break
 
