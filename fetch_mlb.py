@@ -159,6 +159,13 @@ def fetch_posts(session, cutoff_date):
             found = 0
             stop = False
 
+            # 1페이지 디버그: 첫 3행의 td 텍스트 출력
+            if page == 1:
+                print(f'  [디버그] 총 {len(rows)}행')
+                for i, row in enumerate(rows[:3]):
+                    tds = [td.get_text(strip=True)[:20] for td in row.select('td')]
+                    print(f'  [디버그] 행{i}: {tds}')
+
             for row in rows:
                 try:
                     # 공지 스킵
