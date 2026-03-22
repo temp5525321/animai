@@ -63,7 +63,7 @@ def get_existing_post_ids():
     return set(item['post_id'] for item in data)
 
 def get_latest_post_date():
-    """Supabase에서 가장 최근 게시물의 post_date 조회 (deleted 제외)"""
+    """Supabase에서 가장 최근 게시물의 post_date 조회"""
     res = requests.get(
         f'{SUPABASE_URL}/rest/v1/mlb_posts?select=post_date&status=neq.deleted&order=post_date.desc&limit=1',
         headers=HEADERS
@@ -88,170 +88,133 @@ TAG_MAP = {
     '아이돌': 'idol'
 }
 
-def parse_row_date(row, today, today_str):
-    """목록 행에서 날짜 파싱. HH:MM → 오늘, MM-DD → 올해, YYYY-MM-DD → 그대로"""
-    for td in row.select('td'):
-        txt = td.get_text(strip=True)
-        # YYYY-MM-DD
-        if len(txt) == 10 and txt.count('-') == 2:
-            try:
-                return datetime.strptime(txt, '%Y-%m-%d').replace(tzinfo=KST), txt
-            except:
-                pass
-        # MM-DD (올해)
-        elif len(txt) == 5 and txt.count('-') == 1:
-            try:
-                pd = datetime.strptime(f'{today.year}-{txt}', '%Y-%m-%d').replace(tzinfo=KST)
-                if pd > today:
-                    pd = pd.replace(year=today.year - 1)
-                return pd, pd.strftime('%Y-%m-%d')
-            except:
-                pass
-        # HH:MM 또는 HH:MM:SS (오늘 글)
-        elif (len(txt) == 5 and txt.count(':') == 1) or (len(txt) == 8 and txt.count(':') == 2):
-            try:
-                fmt = '%H:%M' if len(txt) == 5 else '%H:%M:%S'
-                datetime.strptime(txt, fmt)
-                return today.replace(hour=0, minute=0, second=0, microsecond=0), today_str
-            except:
-                pass
-    return None, ''
-
 def fetch_posts(session, cutoff_date):
-    """
-    말머리별 목록을 1페이지(최신순)부터 순회.
-    각 행에서 날짜 파싱 후 cutoff_date 이전 글 발견 시 즉시 해당 카테고리 중단.
-    제목+본문 검색(m=search)이 아닌 말머리 목록(m=list)을 사용하므로
-    페이지네이션이 정상 작동하여 30개 초과 시에도 누락 없이 수집.
-    키워드(ai/a.i/a,i)는 제목에서 필터링.
+    """cutoff_date 이후 게시물만 수집.
+    p=1, 31, 61, 91... (30씩 증가) 커서 방식으로 페이지네이션.
     """
     posts = []
     seen_ids = set()
-    today = datetime.now(KST)
-    today_str = today.strftime('%Y-%m-%d')
 
     for category in SEARCH_CATEGORIES:
-        print(f'\n[{category}] 크롤링 시작 (1페이지부터 최신순)')
-        for page in range(1, 500):
-            try:
-                res = session.get(BOARD_URL, params={
-                    'm': 'list', 'b': 'bullpen',
-                    'select': 'spf', 'query': category, 'p': page
-                }, timeout=15)
+        for keyword in SEARCH_KEYWORDS:
+            print(f'\n[{category}] 키워드 "{keyword}" 검색 시작')
+            cursor = 1  # p=1부터 시작, 30씩 증가
+            while True:
+                params = {
+                    'p': cursor,
+                    'm': 'search',
+                    'b': 'bullpen',
+                    'query': category,
+                    'select': 'spf',
+                    'subquery': keyword,
+                    'subselect': 'sct',
+                    'user': ''
+                }
+                res = session.get(BOARD_URL, params=params)
                 if res.status_code != 200:
-                    print(f'  [{category}] 페이지 {page} 오류({res.status_code}), 중단')
                     break
-            except Exception as e:
-                print(f'  [{category}] 페이지 {page} 요청 오류: {e}')
-                break
 
-            soup = BeautifulSoup(res.text, 'html.parser')
-            table = soup.select_one('table.tbl_type01')
-            if not table:
-                print(f'  [{category}] 페이지 {page} 테이블 없음, 중단')
-                break
+                soup = BeautifulSoup(res.text, 'html.parser')
+                table = soup.select_one('table.tbl_type01')
+                if not table:
+                    break
 
-            rows = table.select('tbody tr') or table.select('tr')
-            if not rows:
-                print(f'  [{category}] 페이지 {page} 행 없음, 중단')
-                break
+                rows = table.select('tbody tr') or table.select('tr')
+                if not rows:
+                    break
 
-            found = 0
-            stop = False
+                page_has_valid = False
+                stop_category = False
 
-            # 1페이지 디버그: 첫 3행의 td 텍스트 출력
-            if page == 1:
-                print(f'  [디버그] 총 {len(rows)}행')
-                for i, row in enumerate(rows[:3]):
-                    tds = [td.get_text(strip=True)[:20] for td in row.select('td')]
-                    print(f'  [디버그] 행{i}: {tds}')
+                for row in rows:
+                    try:
+                        first_td = row.select_one('td')
+                        if first_td and first_td.get_text(strip=True) == '공지':
+                            continue
 
-            for row in rows:
-                try:
-                    # 공지 스킵
-                    first_td = row.select_one('td')
-                    if first_td and first_td.get_text(strip=True) == '공지':
+                        # 날짜 추출 - YYYY-MM-DD 형식
+                        post_date = None
+                        date_str = ''
+                        for td in row.select('td'):
+                            txt = td.get_text(strip=True)
+                            if len(txt) == 10 and txt.count('-') == 2:
+                                try:
+                                    post_date = datetime.strptime(txt, '%Y-%m-%d').replace(tzinfo=KST)
+                                    date_str = txt
+                                    break
+                                except:
+                                    pass
+
+                        # 날짜가 cutoff보다 오래됐으면 종료
+                        if post_date and post_date < cutoff_date:
+                            stop_category = True
+                            break
+
+                        title_el = (row.select_one('a[href*="m=view"]') or
+                                   row.select_one('td.t_left a') or
+                                   row.select_one('a[href*="bullpen"]'))
+                        if not title_el:
+                            continue
+
+                        title = title_el.get_text(strip=True)
+                        if not title or len(title) < 2:
+                            continue
+
+                        href = title_el.get('href', '')
+                        url = href if href.startswith('http') else (BASE_URL + href if href.startswith('/') else BASE_URL + '/' + href)
+
+                        post_id = ''
+                        if 'id=' in url:
+                            post_id = url.split('id=')[1].split('&')[0]
+                        if not post_id:
+                            import hashlib
+                            post_id = hashlib.md5(url.encode()).hexdigest()[:12]
+
+                        if post_id in seen_ids:
+                            continue
+                        seen_ids.add(post_id)
+                        page_has_valid = True
+
+                        # 작성자
+                        author = ''
+                        author_el = row.select_one('[data-unick]')
+                        if author_el:
+                            import urllib.parse
+                            author = urllib.parse.unquote(author_el.get('data-unick', ''))
+                        if not author:
+                            td_author = row.select_one('td:nth-child(3) a') or row.select_one('td:nth-child(3)')
+                            author = td_author.get_text(strip=True) if td_author else '익명'
+
+                        # 썸네일
+                        thumb_el = row.select_one('img:not([src*="btn"]):not([src*="ico"])')
+                        thumb = ''
+                        if thumb_el:
+                            src = thumb_el.get('src', '')
+                            if src and not src.startswith('http'):
+                                src = BASE_URL + src
+                            if src and not any(x in src for x in ['Profile', 'profile', 'logo', 'btn', 'ico', 'ugc/WWW']):
+                                thumb = src
+
+                        posts.append({
+                            'post_id': post_id,
+                            'title': title,
+                            'url': url,
+                            'author': author,
+                            'thumb': thumb,
+                            'category': category,
+                            'post_date': date_str
+                        })
+                        print(f'  발견: [{category}] {title[:40]}')
+
+                    except Exception as e:
+                        print(f'행 파싱 오류: {e}')
                         continue
 
-                    # 날짜 파싱
-                    post_date, date_str = parse_row_date(row, today, today_str)
+                if stop_category or not page_has_valid:
+                    print(f'  [{category}/{keyword}] 중단 (cursor={cursor})')
+                    break
 
-                    # 날짜 파싱 실패 → 스킵
-                    if not post_date:
-                        continue
-
-                    # cutoff 이전 → 즉시 이 카테고리 중단
-                    if post_date < cutoff_date:
-                        print(f'  [{category}] 페이지 {page}: {date_str} < cutoff {cutoff_date.strftime("%Y-%m-%d")}, 중단')
-                        stop = True
-                        break
-
-                    # 제목 링크
-                    title_el = (row.select_one('a[href*="m=view"]') or
-                                row.select_one('td.t_left a') or
-                                row.select_one('a[href*="bullpen"]'))
-                    if not title_el:
-                        continue
-
-                    title = title_el.get_text(strip=True)
-                    if not title or len(title) < 2:
-                        continue
-
-                    # 키워드 필터 (제목에 ai/a.i/a,i 포함)
-                    if not any(kw in title.lower() for kw in SEARCH_KEYWORDS):
-                        continue
-
-                    # URL / post_id
-                    href = title_el.get('href', '')
-                    url = href if href.startswith('http') else (
-                        BASE_URL + href if href.startswith('/') else BASE_URL + '/' + href)
-                    post_id = ''
-                    if 'id=' in url:
-                        post_id = url.split('id=')[1].split('&')[0]
-                    if not post_id:
-                        import hashlib
-                        post_id = hashlib.md5(url.encode()).hexdigest()[:12]
-
-                    if post_id in seen_ids:
-                        continue
-                    seen_ids.add(post_id)
-
-                    # 작성자
-                    author = ''
-                    author_el = row.select_one('[data-unick]')
-                    if author_el:
-                        import urllib.parse
-                        author = urllib.parse.unquote(author_el.get('data-unick', ''))
-                    if not author:
-                        td_author = row.select_one('td:nth-child(3) a') or row.select_one('td:nth-child(3)')
-                        author = td_author.get_text(strip=True) if td_author else '익명'
-
-                    # 썸네일
-                    thumb = ''
-                    thumb_el = row.select_one('img:not([src*="btn"]):not([src*="ico"])')
-                    if thumb_el:
-                        src = thumb_el.get('src', '')
-                        if src and not src.startswith('http'):
-                            src = BASE_URL + src
-                        if src and not any(x in src for x in ['Profile', 'profile', 'logo', 'btn', 'ico', 'ugc/WWW']):
-                            thumb = src
-
-                    posts.append({
-                        'post_id': post_id, 'title': title, 'url': url,
-                        'author': author, 'thumb': thumb,
-                        'category': category, 'post_date': date_str
-                    })
-                    found += 1
-                    print(f'  발견: [{category}] {title[:40]} ({date_str})')
-
-                except Exception as e:
-                    print(f'  행 파싱 오류: {e}')
-                    continue
-
-            print(f'  [{category}] 페이지 {page}: {found}개 발견, 누적 {len(posts)}개')
-
-            if stop:
-                break
+                cursor += 30  # 다음 페이지: 31, 61, 91...
 
     return posts
 
