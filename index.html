@@ -1249,25 +1249,19 @@ async function openMlbModal(postId) {
       }
     });
 
-    // embed 태그 → X 영상 프록시 처리
+    // embed 태그 → X 영상은 직접 재생 불가, "X에서 보기" 버튼으로 대체
     body.querySelectorAll('embed').forEach(embed => {
       const src = embed.getAttribute('src') || '';
       if (src.includes('twitter.com/i/videos') || src.includes('x.com/i/videos')) {
         const fullSrc = src.startsWith('//') ? 'https:' + src : src;
-        const proxyUrl = `/api/proxy?url=${encodeURIComponent(fullSrc)}`;
-        const videoEl = document.createElement('video');
-        videoEl.setAttribute('controls', '');
-        videoEl.setAttribute('preload', 'metadata');
-        videoEl.style.cssText = 'width:100%;border-radius:8px;background:#000;display:block;margin-bottom:10px;';
-        const source = document.createElement('source');
-        source.setAttribute('src', proxyUrl);
-        source.setAttribute('type', 'video/mp4');
-        videoEl.appendChild(source);
-        // 실패 시 X 링크로 fallback
         const videoId = fullSrc.split('/').pop();
         const xUrl = `https://x.com/i/videos/${videoId}`;
-        videoEl.setAttribute('onerror', `this.outerHTML='<a href="${xUrl}" target="_blank" style="display:block;padding:12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:var(--accent);text-decoration:none;font-size:13px;margin-bottom:10px;">🐦 X에서 영상 보기 ↗</a>'`);
-        embed.parentNode.replaceChild(videoEl, embed);
+        const linkEl = document.createElement('a');
+        linkEl.href = xUrl;
+        linkEl.target = '_blank';
+        linkEl.style.cssText = 'display:flex;align-items:center;gap:10px;padding:14px 16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.15);border-radius:10px;color:var(--text);text-decoration:none;font-size:14px;margin-bottom:10px;font-family:\'Noto Sans KR\';transition:background 0.15s;';
+        linkEl.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.737-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg> <span>X(트위터)에서 영상 보기 ↗</span>';
+        embed.parentNode.replaceChild(linkEl, embed);
       } else {
         embed.remove();
       }
