@@ -89,46 +89,38 @@ TAG_MAP = {
 }
 
 def fetch_posts(session, cutoff_date):
-    """말머리별 목록 페이지 순회로 cutoff_date 이후 게시물 수집"""
+    """말머리별 목록을 1페이지부터 순서대로 순회.
+    목록은 최신순이므로 cutoff_date 이전 글을 만나는 순간 즉시 중단.
+    """
     posts = []
     seen_ids = set()
     KEYWORDS = ['ai', 'a.i', 'a,i']
+    today_str = datetime.now(KST).strftime('%Y-%m-%d')
+    _today = datetime.now(KST)
 
     for category in SEARCH_CATEGORIES:
-        print(f'\n[{category}] 목록 순회 시작')
-        for page in range(1, 200):  # 최대 200페이지 (cutoff 도달 시 자동 중단)
-            params = {
-                'm': 'list',
-                'b': 'bullpen',
-                'select': 'spf',
-                'query': category,
-                'p': page
-            }
+        print(f'\n[{category}] 목록 순회 시작 (1페이지부터 최신순)')
+
+        for page in range(1, 500):
+            params = {'m': 'list', 'b': 'bullpen', 'select': 'spf', 'query': category, 'p': page}
             try:
                 res = session.get(BOARD_URL, params=params, timeout=15)
                 if res.status_code != 200:
-                    print(f'  [{category}] 페이지 {page} 응답 오류: {res.status_code}')
                     break
             except Exception as e:
-                print(f'  [{category}] 페이지 {page} 요청 오류: {e}')
+                print(f'  요청 오류: {e}')
                 break
 
             soup = BeautifulSoup(res.text, 'html.parser')
             table = soup.select_one('table.tbl_type01')
             if not table:
-                print(f'  [{category}] 페이지 {page} 테이블 없음, 중단')
                 break
 
             rows = table.select('tbody tr') or table.select('tr')
             if not rows:
-                print(f'  [{category}] 페이지 {page} 행 없음, 중단')
                 break
 
-            page_has_post = False
-            reached_cutoff = False
-            _today = datetime.now(KST)
-            _today_str = _today.strftime('%Y-%m-%d')
-            _cur_year = _today.year
+            stop = False  # 이 페이지에서 cutoff 만나면 True → 페이지 루프 종료
 
             for row in rows:
                 try:
@@ -136,8 +128,7 @@ def fetch_posts(session, cutoff_date):
                     if first_td and first_td.get_text(strip=True) == '공지':
                         continue
 
-                    # 날짜 추출 - m=list 날짜 형식 3가지:
-                    # HH:MM (오늘글), MM-DD (올해글), YYYY-MM-DD (작년이전글)
+                    # 날짜 추출
                     post_date = None
                     date_str = ''
                     for td in row.select('td'):
@@ -153,41 +144,35 @@ def fetch_posts(session, cutoff_date):
                         # MM-DD (올해)
                         elif len(txt) == 5 and txt.count('-') == 1:
                             try:
-                                pd = datetime.strptime(f'{_cur_year}-{txt}', '%Y-%m-%d').replace(tzinfo=KST)
-                                if pd > _today:  # 미래면 작년
-                                    pd = pd.replace(year=_cur_year - 1)
+                                pd = datetime.strptime(f'{_today.year}-{txt}', '%Y-%m-%d').replace(tzinfo=KST)
+                                if pd > _today:
+                                    pd = pd.replace(year=_today.year - 1)
                                 post_date = pd
                                 date_str = pd.strftime('%Y-%m-%d')
                                 break
                             except:
                                 pass
-                        # HH:MM (오늘)
-                        elif len(txt) == 5 and txt.count(':') == 1:
+                        # HH:MM 또는 HH:MM:SS (오늘)
+                        elif (len(txt) == 5 and txt.count(':') == 1) or (len(txt) == 8 and txt.count(':') == 2):
                             try:
-                                datetime.strptime(txt, '%H:%M')
+                                fmt = '%H:%M' if len(txt) == 5 else '%H:%M:%S'
+                                datetime.strptime(txt, fmt)
                                 post_date = _today.replace(hour=0, minute=0, second=0, microsecond=0)
-                                date_str = _today_str
-                                break
-                            except:
-                                pass
-                        # HH:MM:SS (오늘)
-                        elif len(txt) == 8 and txt.count(':') == 2:
-                            try:
-                                datetime.strptime(txt, '%H:%M:%S')
-                                post_date = _today.replace(hour=0, minute=0, second=0, microsecond=0)
-                                date_str = _today_str
+                                date_str = today_str
                                 break
                             except:
                                 pass
 
-                    # cutoff보다 오래된 글이면 이 행 스킵
+                    # cutoff 이전 글 → 즉시 전체 중단
                     if post_date and post_date < cutoff_date:
-                        reached_cutoff = True
+                        print(f'  [{category}] 페이지 {page}: cutoff({cutoff_date.strftime("%Y-%m-%d")}) 이전 글 발견, 중단')
+                        stop = True
+                        break
+
+                    # 날짜 미상 글은 스킵
+                    if not post_date:
                         continue
 
-                    page_has_post = True
-
-                    # 제목 링크
                     title_el = (row.select_one('a[href*="m=view"]') or
                                row.select_one('td.t_left a') or
                                row.select_one('a[href*="bullpen"]'))
@@ -198,17 +183,14 @@ def fetch_posts(session, cutoff_date):
                     if not title or len(title) < 2:
                         continue
 
-                    # 키워드 필터 (제목에 ai/a.i/a,i 포함 여부)
-                    title_lower = title.lower()
-                    if not any(kw in title_lower for kw in KEYWORDS):
+                    # 키워드 필터 (제목에 ai/a.i/a,i 포함)
+                    if not any(kw in title.lower() for kw in KEYWORDS):
                         continue
 
                     href = title_el.get('href', '')
                     url = href if href.startswith('http') else (BASE_URL + href if href.startswith('/') else BASE_URL + '/' + href)
 
-                    post_id = ''
-                    if 'id=' in url:
-                        post_id = url.split('id=')[1].split('&')[0]
+                    post_id = url.split('id=')[1].split('&')[0] if 'id=' in url else ''
                     if not post_id:
                         import hashlib
                         post_id = hashlib.md5(url.encode()).hexdigest()[:12]
@@ -217,7 +199,6 @@ def fetch_posts(session, cutoff_date):
                         continue
                     seen_ids.add(post_id)
 
-                    # 작성자
                     author = ''
                     author_el = row.select_one('[data-unick]')
                     if author_el:
@@ -227,9 +208,8 @@ def fetch_posts(session, cutoff_date):
                         td_author = row.select_one('td:nth-child(3) a') or row.select_one('td:nth-child(3)')
                         author = td_author.get_text(strip=True) if td_author else '익명'
 
-                    # 썸네일
-                    thumb_el = row.select_one('img:not([src*="btn"]):not([src*="ico"])')
                     thumb = ''
+                    thumb_el = row.select_one('img:not([src*="btn"]):not([src*="ico"])')
                     if thumb_el:
                         src = thumb_el.get('src', '')
                         if src and not src.startswith('http'):
@@ -238,28 +218,17 @@ def fetch_posts(session, cutoff_date):
                             thumb = src
 
                     posts.append({
-                        'post_id': post_id,
-                        'title': title,
-                        'url': url,
-                        'author': author,
-                        'thumb': thumb,
-                        'category': category,
-                        'post_date': date_str
+                        'post_id': post_id, 'title': title, 'url': url,
+                        'author': author, 'thumb': thumb,
+                        'category': category, 'post_date': date_str
                     })
                     print(f'  발견: [{category}] {title[:40]} ({date_str})')
 
                 except Exception as e:
-                    print(f'행 파싱 오류: {e}')
+                    print(f'  행 파싱 오류: {e}')
                     continue
 
-            # cutoff 이전 글을 만났으면 이 카테고리 순회 종료 (목록은 최신순)
-            if reached_cutoff:
-                print(f'  [{category}] 페이지 {page}: cutoff 날짜 도달, 중단')
-                break
-
-            # 이 페이지에 게시물이 하나도 없으면 마지막 페이지
-            if not page_has_post:
-                print(f'  [{category}] 페이지 {page}: 게시물 없음, 중단')
+            if stop:
                 break
 
             print(f'  [{category}] 페이지 {page} 완료, 누적 {len(posts)}개')
