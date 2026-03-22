@@ -126,7 +126,7 @@ def fetch_posts(session, cutoff_date):
                     break
 
                 page_has_valid = False
-                stop_category = False
+                stop_after_page = False
 
                 for row in rows:
                     try:
@@ -147,10 +147,10 @@ def fetch_posts(session, cutoff_date):
                                 except:
                                     pass
 
-                        # 날짜가 cutoff보다 오래됐으면 이 카테고리+키워드 검색 종료
+                        # 날짜가 cutoff보다 오래됐으면 이 행은 스킵, 페이지 끝나면 중단
                         if post_date and post_date < cutoff_date:
-                            stop_category = True
-                            break
+                            stop_after_page = True
+                            continue  # 이 행은 스킵하지만 같은 페이지 다른 행은 계속 처리
 
                         title_el = (row.select_one('a[href*="m=view"]') or
                                    row.select_one('td.t_left a') or
@@ -212,7 +212,7 @@ def fetch_posts(session, cutoff_date):
                         print(f'행 파싱 오류: {e}')
                         continue
 
-                if stop_category or not page_has_valid:
+                if stop_after_page or not page_has_valid:
                     print(f'  [{category}/{keyword}] 날짜 범위 초과 또는 결과 없음, 중단')
                     break
 
