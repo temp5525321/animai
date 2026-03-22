@@ -76,7 +76,6 @@ def get_latest_post_date():
     return None
 
 SEARCH_CATEGORIES = ['영화', '방송', '만화', 'IT', '유머', '짤방', '펌글', '아이돌', '17금', '19금', '주번나']
-SEARCH_KEYWORDS = ['ai', 'a.i', 'a,i']
 
 TAG_MAP = {
     '영화': 'movie',
@@ -93,128 +92,146 @@ TAG_MAP = {
 }
 
 def fetch_posts(session, cutoff_date):
-    """cutoff_date 이후 게시물만 수집"""
+    """말머리별 목록 페이지 순회로 cutoff_date 이후 게시물 수집"""
     posts = []
     seen_ids = set()
+    KEYWORDS = ['ai', 'a.i', 'a,i']
 
     for category in SEARCH_CATEGORIES:
-        for keyword in SEARCH_KEYWORDS:
-            print(f'\n[{category}] 키워드 "{keyword}" 검색 시작')
-            for page in range(1, 100):  # 최대 100페이지 (날짜 범위 초과 시 자동 중단)
-                params = {
-                    'select': 'spf',
-                    'subselect': 'sct',
-                    'm': 'search',
-                    'b': 'bullpen',
-                    'search_select2': 'spf',
-                    'query': category,
-                    'search_select3': 'sfl',
-                    'subquery': keyword,
-                    'p': page
-                }
-                res = session.get(BOARD_URL, params=params)
+        print(f'\n[{category}] 목록 순회 시작')
+        for page in range(1, 200):  # 최대 200페이지 (cutoff 도달 시 자동 중단)
+            params = {
+                'm': 'list',
+                'b': 'bullpen',
+                'select': 'spf',
+                'query': category,
+                'p': page
+            }
+            try:
+                res = session.get(BOARD_URL, params=params, timeout=15)
                 if res.status_code != 200:
+                    print(f'  [{category}] 페이지 {page} 응답 오류: {res.status_code}')
                     break
+            except Exception as e:
+                print(f'  [{category}] 페이지 {page} 요청 오류: {e}')
+                break
 
-                soup = BeautifulSoup(res.text, 'html.parser')
-                table = soup.select_one('table.tbl_type01')
-                if not table:
-                    break
+            soup = BeautifulSoup(res.text, 'html.parser')
+            table = soup.select_one('table.tbl_type01')
+            if not table:
+                print(f'  [{category}] 페이지 {page} 테이블 없음, 중단')
+                break
 
-                rows = table.select('tbody tr') or table.select('tr')
-                if not rows:
-                    break
+            rows = table.select('tbody tr') or table.select('tr')
+            if not rows:
+                print(f'  [{category}] 페이지 {page} 행 없음, 중단')
+                break
 
-                page_has_valid = False
-                stop_after_page = False
+            page_has_post = False   # 이 페이지에 게시물이 하나라도 있는지
+            reached_cutoff = False  # cutoff 날짜 이전 글을 만났는지
 
-                for row in rows:
-                    try:
-                        first_td = row.select_one('td')
-                        if first_td and first_td.get_text(strip=True) == '공지':
-                            continue
-
-                        # 날짜 추출 - 모든 td에서 YYYY-MM-DD 형식 찾기
-                        post_date = None
-                        date_str = ''
-                        for td in row.select('td'):
-                            txt = td.get_text(strip=True)
-                            if len(txt) == 10 and txt.count('-') == 2:
-                                try:
-                                    post_date = datetime.strptime(txt, '%Y-%m-%d').replace(tzinfo=KST)
-                                    date_str = txt
-                                    break
-                                except:
-                                    pass
-
-                        # 날짜가 cutoff보다 오래됐으면 이 행은 스킵, 페이지 끝나면 중단
-                        if post_date and post_date < cutoff_date:
-                            stop_after_page = True
-                            continue  # 이 행은 스킵하지만 같은 페이지 다른 행은 계속 처리
-
-                        title_el = (row.select_one('a[href*="m=view"]') or
-                                   row.select_one('td.t_left a') or
-                                   row.select_one('a[href*="bullpen"]'))
-                        if not title_el:
-                            continue
-
-                        title = title_el.get_text(strip=True)
-                        if not title or len(title) < 2:
-                            continue
-
-                        href = title_el.get('href', '')
-                        url = href if href.startswith('http') else (BASE_URL + href if href.startswith('/') else BASE_URL + '/' + href)
-
-                        post_id = ''
-                        if 'id=' in url:
-                            post_id = url.split('id=')[1].split('&')[0]
-                        if not post_id:
-                            import hashlib
-                            post_id = hashlib.md5(url.encode()).hexdigest()[:12]
-
-                        if post_id in seen_ids:
-                            continue
-                        seen_ids.add(post_id)
-                        page_has_valid = True
-
-                        # 작성자
-                        author = ''
-                        author_el = row.select_one('[data-unick]')
-                        if author_el:
-                            import urllib.parse
-                            author = urllib.parse.unquote(author_el.get('data-unick', ''))
-                        if not author:
-                            td_author = row.select_one('td:nth-child(3) a') or row.select_one('td:nth-child(3)')
-                            author = td_author.get_text(strip=True) if td_author else '익명'
-
-                        # 썸네일 (프로필 이미지 제외)
-                        thumb_el = row.select_one('img:not([src*="btn"]):not([src*="ico"])')
-                        thumb = ''
-                        if thumb_el:
-                            src = thumb_el.get('src', '')
-                            if src and not src.startswith('http'):
-                                src = BASE_URL + src
-                            if src and not any(x in src for x in ['Profile', 'profile', 'logo', 'btn', 'ico', 'ugc/WWW']):
-                                thumb = src
-
-                        posts.append({
-                            'post_id': post_id,
-                            'title': title,
-                            'url': url,
-                            'author': author,
-                            'thumb': thumb,
-                            'category': category,
-                            'post_date': date_str
-                        })
-                        print(f'  발견: [{category}] {title[:40]}')
-
-                    except Exception as e:
-                        print(f'행 파싱 오류: {e}')
+            for row in rows:
+                try:
+                    first_td = row.select_one('td')
+                    if first_td and first_td.get_text(strip=True) == '공지':
                         continue
 
-                if stop_after_page or not page_has_valid:
-                    print(f'  [{category}/{keyword}] 날짜 범위 초과 또는 결과 없음, 중단')
-                    break
+                    # 날짜 추출
+                    post_date = None
+                    date_str = ''
+                    for td in row.select('td'):
+                        txt = td.get_text(strip=True)
+                        if len(txt) == 10 and txt.count('-') == 2:
+                            try:
+                                post_date = datetime.strptime(txt, '%Y-%m-%d').replace(tzinfo=KST)
+                                date_str = txt
+                                break
+                            except:
+                                pass
+
+                    # cutoff보다 오래된 글이면 이 행 스킵
+                    if post_date and post_date < cutoff_date:
+                        reached_cutoff = True
+                        continue
+
+                    page_has_post = True
+
+                    # 제목 링크
+                    title_el = (row.select_one('a[href*="m=view"]') or
+                               row.select_one('td.t_left a') or
+                               row.select_one('a[href*="bullpen"]'))
+                    if not title_el:
+                        continue
+
+                    title = title_el.get_text(strip=True)
+                    if not title or len(title) < 2:
+                        continue
+
+                    # 키워드 필터 (제목에 ai/a.i/a,i 포함 여부)
+                    title_lower = title.lower()
+                    if not any(kw in title_lower for kw in KEYWORDS):
+                        continue
+
+                    href = title_el.get('href', '')
+                    url = href if href.startswith('http') else (BASE_URL + href if href.startswith('/') else BASE_URL + '/' + href)
+
+                    post_id = ''
+                    if 'id=' in url:
+                        post_id = url.split('id=')[1].split('&')[0]
+                    if not post_id:
+                        import hashlib
+                        post_id = hashlib.md5(url.encode()).hexdigest()[:12]
+
+                    if post_id in seen_ids:
+                        continue
+                    seen_ids.add(post_id)
+
+                    # 작성자
+                    author = ''
+                    author_el = row.select_one('[data-unick]')
+                    if author_el:
+                        import urllib.parse
+                        author = urllib.parse.unquote(author_el.get('data-unick', ''))
+                    if not author:
+                        td_author = row.select_one('td:nth-child(3) a') or row.select_one('td:nth-child(3)')
+                        author = td_author.get_text(strip=True) if td_author else '익명'
+
+                    # 썸네일
+                    thumb_el = row.select_one('img:not([src*="btn"]):not([src*="ico"])')
+                    thumb = ''
+                    if thumb_el:
+                        src = thumb_el.get('src', '')
+                        if src and not src.startswith('http'):
+                            src = BASE_URL + src
+                        if src and not any(x in src for x in ['Profile', 'profile', 'logo', 'btn', 'ico', 'ugc/WWW']):
+                            thumb = src
+
+                    posts.append({
+                        'post_id': post_id,
+                        'title': title,
+                        'url': url,
+                        'author': author,
+                        'thumb': thumb,
+                        'category': category,
+                        'post_date': date_str
+                    })
+                    print(f'  발견: [{category}] {title[:40]} ({date_str})')
+
+                except Exception as e:
+                    print(f'행 파싱 오류: {e}')
+                    continue
+
+            # 이 페이지 전체가 cutoff 이전 글이면 다음 카테고리로
+            if reached_cutoff and not page_has_post:
+                print(f'  [{category}] 페이지 {page}: cutoff 이전 글만 있음, 중단')
+                break
+
+            # 게시물 자체가 없으면 (마지막 페이지)
+            if not page_has_post and not reached_cutoff:
+                print(f'  [{category}] 페이지 {page}: 게시물 없음, 중단')
+                break
+
+            print(f'  [{category}] 페이지 {page} 완료, 누적 {len(posts)}개')
 
     return posts
 
