@@ -253,6 +253,7 @@ footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center;
     <button class="topic-tab" onclick="setMlbCategory('seventeen',this)">17금</button>
     <button class="topic-tab" onclick="setMlbCategory('nineteen',this)">19금</button>
     <button class="topic-tab" onclick="setMlbCategory('nsfw',this)">주번나</button>
+
   </div>
 
   <div class="toolbar">
@@ -428,8 +429,8 @@ footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center;
 </footer>
 
 <script>
-const SUPABASE_URL = 'https://unpztnvewqqhnwnyfopa.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVucHp0bnZld3FxaG53bnlmb3BhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3MTcxNTgsImV4cCI6MjA4OTI5MzE1OH0.g5iTLHWqaEIxGO9-PwRqmToy_eZz2gy4ra7eWODZluQ';
+const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
 
 const { createClient } = supabase;
 const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -556,7 +557,9 @@ function updateUserUI(user) {
 }
 
 async function googleLogin() {
-  const { error } = await db.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.href } });
+  // 해시(#mlb 등) 제거 - Supabase가 #access_token 해시로 토큰을 전달하므로 충돌 방지
+  const redirectTo = window.location.origin + window.location.pathname;
+  const { error } = await db.auth.signInWithOAuth({ provider: 'google', options: { redirectTo } });
   if (error) toast('로그인 오류: ' + error.message);
 }
 async function userLogout() { await db.auth.signOut(); toast('로그아웃됐습니다'); }
