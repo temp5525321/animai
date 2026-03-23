@@ -1432,8 +1432,12 @@ async function deleteMlbCmt(cmtId, postId) {
   await loadMlbCmts(postId); toast('댓글 삭제됨');
 }
 
-// 세션 인증된 경우에만 init 실행
-if (sessionStorage.getItem(GATE_KEY) === '1') {
+// 구글 로그인 후 돌아온 경우 자동 게이트 통과
+if (location.hash.includes('access_token')) {
+  sessionStorage.setItem(GATE_KEY, '1');
+  document.getElementById('passwordGate').style.display = 'none';
+  init();
+} else if (sessionStorage.getItem(GATE_KEY) === '1') {
   init();
 }
 </script>
