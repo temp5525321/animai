@@ -1125,7 +1125,7 @@ function buildMlbCard(p) {
 
   let thumbHtml;
   if (mp4Videos.length > 0) {
-    const proxyUrl = `/api/proxy?url=${encodeURIComponent(mp4Videos[0])}`;
+    const proxyUrl = `https://aigathering-proxy.temp5525321.workers.dev/?url=${encodeURIComponent(mp4Videos[0])}`;
     const poster = posterSrc ? `poster="${posterSrc}"` : (firstImage ? `poster="${firstImage}"` : '');
     thumbHtml = `<video preload="metadata" muted playsinline ${poster} style="width:100%;height:100%;object-fit:cover;pointer-events:none;" onloadedmetadata="this.currentTime=0.1">
       <source src="${proxyUrl}" type="video/mp4">
@@ -1250,7 +1250,7 @@ async function openMlbModal(postId) {
       const src = v.querySelector('source')?.getAttribute('src') || v.getAttribute('src') || v.getAttribute('data-src') || '';
       if (src) {
         const fullSrc = src.startsWith('http') ? src : 'https://mlbpark.donga.com' + src;
-        const proxyUrl = `/api/proxy?url=${encodeURIComponent(fullSrc)}`;
+        const proxyUrl = `https://aigathering-proxy.temp5525321.workers.dev/?url=${encodeURIComponent(fullSrc)}`;
         v.style.cssText = 'width:100%;border-radius:8px;background:#000;display:block;margin-bottom:10px;';
         v.setAttribute('controls', '');
         v.setAttribute('preload', 'metadata');
@@ -1302,7 +1302,7 @@ async function openMlbModal(postId) {
     body.querySelectorAll('img').forEach(img => {
       const src = img.getAttribute('src') || '';
       if (src && !src.startsWith('data:')) {
-        img.setAttribute('src', `/api/proxy?url=${encodeURIComponent(src)}`);
+        img.setAttribute('src', `https://aigathering-proxy.temp5525321.workers.dev/?url=${encodeURIComponent(src)}`);
       }
       img.style.cssText = 'width:100%;max-width:100%;border-radius:8px;margin-bottom:8px;display:block;height:auto;';
       img.setAttribute('loading', 'lazy');
