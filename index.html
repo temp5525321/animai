@@ -1329,7 +1329,7 @@ async function openMlbModal(postId) {
     if (mp4Videos.length > 0) {
       contentHtml += mp4Videos.map(url => {
         const isMlb = url.includes('donga.com') || url.includes('tpzlfh.uk');
-        const proxyUrl = isMlb ? `/api/proxy?url=${encodeURIComponent(url)}` : url;
+        const proxyUrl = isMlb ? `https://aigathering-proxy.temp5525321.workers.dev/?url=${encodeURIComponent(url)}` : url;
         return `<div style="margin-bottom:10px;">
           <video controls preload="metadata" style="width:100%;border-radius:8px;background:#000;display:block;">
             <source src="${proxyUrl}" type="video/mp4">
