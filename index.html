@@ -338,6 +338,7 @@ footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center;
     <button class="topic-tab" onclick="setYtPersona('anime',this)">2D프린터</button>
     <button class="topic-tab" onclick="setYtPersona('prompt',this)">프롬프트깎는장인</button>
     <button class="topic-tab" onclick="setYtPersona('trend',this)">루어픽</button>
+    <button class="topic-tab" onclick="setYtPersona('lemae',this)">레매</button>
   </div>
   <div class="toolbar">
     <div class="search-box">
@@ -562,6 +563,7 @@ async function init() {
   showPlatform(startPage);
 
   await loadMlbPosts();
+  await loadYtPosts();
   const { data: { session } } = await db.auth.getSession();
   if (session?.user) {
     await onUserLogin(session.user);
@@ -1486,7 +1488,8 @@ let curYtPersona = 'all';
 const PERSONA_LABELS = {
   all: '전체', meme: '밈파고', virtual: '시크릿AI', cinema: '방구석놀란',
   uncanny: '언캐니밸리', cyberpunk: '조선사이버펑크', healing: '픽셀테라피',
-  music: '그루브생성기', anime: '2D프린터', prompt: '프롬프트깎는장인', trend: '루어픽'
+  music: '그루브생성기', anime: '2D프린터', prompt: '프롬프트깎는장인',
+  trend: '루어픽', lemae: '레매'
 };
 
 async function loadYtPosts() {
