@@ -24,6 +24,7 @@ jobs:
       - name: 유튜브 영상 수집
         env:
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          YOUTUBE_API_KEY_TEST: ${{ secrets.YOUTUBE_API_KEY_TEST }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: python fetch_youtube.py
