@@ -26,15 +26,15 @@ YT_VIDEOS_URL = 'https://www.googleapis.com/youtube/v3/videos'
 # 페르소나별 키워드 정의
 PERSONAS = {
     'meme':      { 'label': '밈파고',          'keywords': ['뇌절 밈 AI', 'meme AI'] },
-    'virtual':   { 'label': '시크릿AI',         'keywords': ['버추얼 인플루언서 AI', '룩북 AI'] },
-    'cinema':    { 'label': '방구석놀란',        'keywords': ['시네마틱 AI', '영화 AI'] },
-    'uncanny':   { 'label': '언캐니밸리',        'keywords': ['리미널 스페이스 AI', 'mystery AI'] },
-    'cyberpunk': { 'label': '조선사이버펑크',    'keywords': ['조선 사이버펑크 AI', '조선 미래 AI'] },
-    'healing':   { 'label': '픽셀테라피',        'keywords': ['로파이 AI', '힐링 AI'] },
-    'music':     { 'label': '그루브생성기',      'keywords': ['jukebox AI', '댄스 AI'] },
-    'anime':     { 'label': '2D프린터',          'keywords': ['애니메이션 AI', '애니 AI'] },
-    'prompt':    { 'label': '프롬프트깎는장인',  'keywords': ['프롬프트 엔지니어링 AI', 'prompt AI'] },
-    'trend':     { 'label': '루어픽',            'keywords': ['바이럴 AI', 'trend AI', 'viral AI'] },
+    # 'virtual':   { 'label': '시크릿AI',         'keywords': ['버추얼 인플루언서 AI', '룩북 AI'] },
+    # 'cinema':    { 'label': '방구석놀란',        'keywords': ['시네마틱 AI', '영화 AI'] },
+    # 'uncanny':   { 'label': '언캐니밸리',        'keywords': ['리미널 스페이스 AI', 'mystery AI'] },
+    # 'cyberpunk': { 'label': '조선사이버펑크',    'keywords': ['조선 사이버펑크 AI', '조선 미래 AI'] },
+    # 'healing':   { 'label': '픽셀테라피',        'keywords': ['로파이 AI', '힐링 AI'] },
+    # 'music':     { 'label': '그루브생성기',      'keywords': ['jukebox AI', '댄스 AI'] },
+    # 'anime':     { 'label': '2D프린터',          'keywords': ['애니메이션 AI', '애니 AI'] },
+    # 'prompt':    { 'label': '프롬프트깎는장인',  'keywords': ['프롬프트 엔지니어링 AI', 'prompt AI'] },
+    # 'trend':     { 'label': '루어픽',            'keywords': ['바이럴 AI', 'trend AI', 'viral AI'] },
     'lemae':     { 'label': '레매',              'keywords': ['레깅스 AI', 'leggings AI'] },
 }
 
