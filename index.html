@@ -864,6 +864,12 @@ async function mBm() {
 }
 
 function copyLink() {
+  // 유튜브 모달
+  if (curYtModalId) {
+    const p = ytPosts.find(p => p.video_id === curYtModalId);
+    if (p) { navigator.clipboard.writeText(p.url).then(()=>toast('링크 복사됨!')); return; }
+  }
+  // 기존 videos 모달
   const v=videos.find(v=>v.yt_id===curModalId); if(!v) return;
   navigator.clipboard.writeText(v.url).then(()=>toast('링크 복사됨!'));
 }
