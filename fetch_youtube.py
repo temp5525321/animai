@@ -1,5 +1,6 @@
 import os
 import sys
+import re
 import requests
 from datetime import datetime, timezone, timedelta
 
@@ -167,8 +168,9 @@ def main():
                 title = snippet.get('title', '')
                 description = snippet.get('description', '')
 
-                # AI 필터링 - 제목 or 설명에 AI 관련 키워드 없으면 스킵
-                if not any(kw in title or kw in description for kw in AI_FILTER_KEYWORDS):
+                # URL 제거 후 AI 필터링 (URL 속 .ai 도메인 오탐지 방지)
+                description_no_url = re.sub(r'https?://\S+|www\.\S+', '', description)
+                if not any(kw in title or kw in description_no_url for kw in AI_FILTER_KEYWORDS):
                     continue
 
                 all_videos[vid] = {
