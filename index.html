@@ -561,9 +561,10 @@ async function init() {
   const validPages = ['mlb','bookmarks','admin','youtube'];
   const startPage = validPages.includes(hash) ? hash : 'mlb';
 
-  await loadMlbPosts();
-  await loadYtPosts();
   showPlatform(startPage);
+
+  // 데이터 병렬 로드
+  await Promise.all([loadMlbPosts(), loadYtPosts()]);
 
   const { data: { session } } = await db.auth.getSession();
   if (session?.user) {
@@ -1497,7 +1498,7 @@ async function loadYtPosts() {
   const { data, error } = await db.from('youtube_posts').select('*').eq('status','approved').order('viral_score',{ascending:false});
   if (error) { console.error('유튜브 로드 오류:', error.message); return; }
   ytPosts = data || [];
-  renderYtGrid();
+  if (curPlatform === 'youtube') renderYtGrid();
   const el = document.getElementById('ytTotalCount');
   if (el) el.textContent = ytPosts.length;
 }
