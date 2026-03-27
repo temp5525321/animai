@@ -25,17 +25,17 @@ YT_VIDEOS_URL = 'https://www.googleapis.com/youtube/v3/videos'
 
 # 페르소나별 키워드 정의
 PERSONAS = {
-    'meme':      { 'label': '밈파고',          'keywords': ['뇌절 밈', 'AI 뇌절 쇼츠', '웃긴 영상 쇼츠', 'AI 웃긴 밈', 'AI 뇌절 영상', '밈', 'meme'] },
-    'virtual':   { 'label': '시크릿AI',         'keywords': ['버추얼 인플루언서', '패션 룩북', '하이패션 룩북', '사이버 룩북', '버추얼 모델', '룩북', 'lookbook'] },
-    'cinema':    { 'label': '방구석놀란',        'keywords': ['시네마틱 쇼츠', '영화 트레일러', '시네마틱 영상', '할리우드 트레일러', '단편영화', '영화', 'movie'] },
-    'uncanny':   { 'label': '언캐니밸리',        'keywords': ['리미널 스페이스', '기괴 영상', '소름 영상', '불쾌한 골짜기', 'mystery', '미스터리', '미스테리'] },
-    'cyberpunk': { 'label': '조선사이버펑크',    'keywords': ['조선 사이버펑크', '한복 미래', '한국 대체역사', '조선 미래', '조선'] },
-    'healing':   { 'label': '픽셀테라피',        'keywords': ['힐링 로파이', 'Lo-fi 힐링', '파스텔 아트', '힐링 영상', '힐링', '아늑', 'healing'] },
-    'music':     { 'label': '그루브생성기',      'keywords': ['댄스 쇼츠', '그루브 영상', '댄스 영상', '음악 커버', '주크박스', '쥬크박스', 'jukebox'] },
-    'anime':     { 'label': '2D프린터',          'keywords': ['애니메이션 캐릭터', '2D 일러스트', '오타쿠 스타일', '애니 캐릭터', 'AI 2D 쇼츠'] },
-    'prompt':    { 'label': '프롬프트깎는장인',  'keywords': ['프롬프트 튜토리얼', '프롬프트 테스트', '프롬프트 엔지니어링', '프롬프트', 'prompt'] },
-    'trend':     { 'label': '루어픽',            'keywords': ['바이럴 쇼츠', '트렌드 영상', 'AI 바이럴 2025', 'trend', 'viral'] },
-    'lemae':     { 'label': '레매',              'keywords': ['레깅스 요가', '레깅스 룩북', '레깅스 운동', '레깅스 홈트', '레깅스 필라테스', '레깅스', 'leggings'] },
+    'meme':      { 'label': '밈파고',          'keywords': ['뇌절 밈 AI', 'meme AI'] },
+    'virtual':   { 'label': '시크릿AI',         'keywords': ['버추얼 인플루언서 AI', '룩북 AI'] },
+    'cinema':    { 'label': '방구석놀란',        'keywords': ['시네마틱 AI', '영화 AI'] },
+    'uncanny':   { 'label': '언캐니밸리',        'keywords': ['리미널 스페이스 AI', 'mystery AI'] },
+    'cyberpunk': { 'label': '조선사이버펑크',    'keywords': ['조선 사이버펑크 AI', '조선 미래 AI'] },
+    'healing':   { 'label': '픽셀테라피',        'keywords': ['로파이 AI', '힐링 AI'] },
+    'music':     { 'label': '그루브생성기',      'keywords': ['jukebox AI', '댄스 AI'] },
+    'anime':     { 'label': '2D프린터',          'keywords': ['애니메이션 AI', '애니 AI'] },
+    'prompt':    { 'label': '프롬프트깎는장인',  'keywords': ['프롬프트 엔지니어링 AI', 'prompt AI'] },
+    'trend':     { 'label': '루어픽',            'keywords': ['바이럴 AI', 'trend AI', 'viral AI'] },
+    'lemae':     { 'label': '레매',              'keywords': ['레깅스 AI', 'leggings AI'] },
 }
 
 # AI 필터링 키워드 (제목에 하나라도 포함되어야 저장)
@@ -165,9 +165,10 @@ def main():
                     continue
                 snippet = item.get('snippet', {})
                 title = snippet.get('title', '')
+                description = snippet.get('description', '')
 
-                # AI 필터링 - 제목에 AI 관련 키워드 없으면 스킵
-                if not any(kw in title for kw in AI_FILTER_KEYWORDS):
+                # AI 필터링 - 제목 or 설명에 AI 관련 키워드 없으면 스킵
+                if not any(kw in title or kw in description for kw in AI_FILTER_KEYWORDS):
                     continue
 
                 all_videos[vid] = {
