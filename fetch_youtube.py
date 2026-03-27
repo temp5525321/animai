@@ -207,7 +207,7 @@ def main():
         viral_score = calc_viral_score(views, likes, comments)
 
         # 페르소나 재분류 (제목 기반)
-        auto_persona = classify_persona(data['title'])
+        auto_persona = data['persona']
 
         enriched.append({
             'video_id': vid,
