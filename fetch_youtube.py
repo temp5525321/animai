@@ -202,12 +202,16 @@ def main():
         comments = s.get('comments', 0)
 
         if views < 100000:  # 10만 이하 스킵
-            continue
+            # 레매는 AI 레깅스 영상이 적으므로 1만 이상으로 낮춤
+            if data['persona'] == 'lemae' and views < 10000:
+                continue
+            elif data['persona'] != 'lemae':
+                continue
 
         viral_score = calc_viral_score(views, likes, comments)
 
-        # 페르소나 재분류 (제목 기반)
-        auto_persona = classify_persona(data['title'])
+        # 페르소나 재분류 하지 않고 검색한 페르소나 그대로 유지
+        auto_persona = data['persona']
 
         enriched.append({
             'video_id': vid,
