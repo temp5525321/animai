@@ -174,6 +174,12 @@ def main():
                 desc_lower = description_no_url.lower()
                 if not any(kw in title_lower or kw in desc_lower for kw in AI_FILTER_KEYWORDS):
                     continue
+                # 디버깅: 어떤 키워드로 통과했는지 출력
+                for kw in AI_FILTER_KEYWORDS:
+                    if kw in title_lower:
+                        print(f'    AI통과(제목): "{kw}" | {title[:40]}')
+                    if kw in desc_lower:
+                        print(f'    AI통과(설명): "{kw}" | {title[:40]}')
 
                 all_videos[vid] = {
                     'video_id': vid,
