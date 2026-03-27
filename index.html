@@ -1569,6 +1569,39 @@ function openYtModal(videoId) {
   document.getElementById('modalDate').textContent = p.published_at || '';
   document.getElementById('modalLink').href = p.url;
   document.getElementById('mLikeCnt').textContent = 0;
+
+  const fmtNum = n => {
+    if (!n) return '0';
+    if (n >= 10000000) return Math.floor(n/10000000) + '천만';
+    if (n >= 10000) return Math.floor(n/10000) + '만';
+    if (n >= 1000) return Math.floor(n/1000) + 'k';
+    return String(n);
+  };
+
+  // 조회수 + 바이럴 점수
+  const metaEl = document.getElementById('modalCh').parentElement;
+  let statsEl = document.getElementById('ytModalStats');
+  if (!statsEl) {
+    statsEl = document.createElement('div');
+    statsEl.id = 'ytModalStats';
+    statsEl.style.cssText = 'font-size:12px;color:var(--muted);margin-top:4px;';
+    metaEl.appendChild(statsEl);
+  }
+  statsEl.innerHTML = `▶ ${fmtNum(p.views)} 조회 &nbsp;·&nbsp; 🔥 바이럴 ${p.viral_score||0}점`;
+
+  // 설명
+  let descEl = document.getElementById('ytModalDesc');
+  if (!descEl) {
+    descEl = document.createElement('div');
+    descEl.id = 'ytModalDesc';
+    descEl.style.cssText = 'background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:1rem;margin-bottom:1rem;font-size:13px;color:var(--muted);line-height:1.7;white-space:pre-wrap;max-height:150px;overflow-y:auto;';
+    const modalBody = document.querySelector('#videoModal .modal-body');
+    const actionsEl = modalBody.querySelector('.modal-actions');
+    modalBody.insertBefore(descEl, actionsEl);
+  }
+  descEl.style.display = p.description ? 'block' : 'none';
+  descEl.textContent = p.description || '';
+
   document.getElementById('videoModal').classList.add('open');
 }
 

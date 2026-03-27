@@ -113,7 +113,7 @@ def get_video_stats(video_ids):
     if not video_ids:
         return {}
     params = {
-        'part': 'statistics,snippet',
+        'part': 'statistics,snippet,status',
         'id': ','.join(video_ids),
         'key': YOUTUBE_API_KEY
     }
@@ -124,10 +124,17 @@ def get_video_stats(video_ids):
     stats = {}
     for item in res.json().get('items', []):
         s = item.get('statistics', {})
+        snippet = item.get('snippet', {})
+        status = item.get('status', {})
+        # 임베드 불가 영상 스킵
+        if not status.get('embeddable', True):
+            print(f'  임베드 불가 스킵: {snippet.get("title", "")[:40]}')
+            continue
         stats[item['id']] = {
             'views': int(s.get('viewCount', 0)),
             'likes': int(s.get('likeCount', 0)),
             'comments': int(s.get('commentCount', 0)),
+            'description': snippet.get('description', ''),
         }
     return stats
 
@@ -211,6 +218,7 @@ def main():
         views = s.get('views', 0)
         likes = s.get('likes', 0)
         comments = s.get('comments', 0)
+        description = s.get('description', '')
 
         if views < 100000:  # 10만 이하 스킵
             # 레매는 AI 레깅스 영상이 적으므로 1만 이상으로 낮춤
@@ -238,6 +246,7 @@ def main():
             'likes': likes,
             'comments': comments,
             'viral_score': viral_score,
+            'description': description,
             'status': 'approved',
             'created_at': datetime.now(KST).strftime('%Y-%m-%d %H:%M:%S+09')
         })
