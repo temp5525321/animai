@@ -446,12 +446,15 @@ footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center;
       <div class="modal-meta">
         <span class="modal-ch" id="modalCh"></span>
         <span class="modal-date" id="modalDate"></span>
-        <a class="modal-link" id="modalLink" href="#" target="_blank">원본 보기 ↗</a>
+        <span id="ytModalStats" style="font-size:12px;color:var(--muted);"></span>
       </div>
+      <div id="ytModalDesc" style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:1rem;margin-bottom:1rem;font-size:13px;color:var(--muted);line-height:1.7;white-space:pre-wrap;max-height:150px;overflow-y:auto;display:none;"></div>
       <div class="modal-actions">
         <button class="modal-btn" id="mLikeBtn" onclick="mLike()">♥ 좋아요 <span id="mLikeCnt">0</span></button>
         <button class="modal-btn" id="mBmBtn" onclick="mBm()">☆ 북마크</button>
         <button class="modal-btn" onclick="copyLink()">🔗 링크 복사</button>
+        <a class="modal-btn" id="ytOriginalBtn" href="#" target="_blank" style="text-decoration:none;display:flex;align-items:center;">원본 보기 ↗</a>
+        <button class="modal-btn" id="ytAdmDelBtn" onclick="ytModalDel()" style="display:none;color:#f87171;border-color:rgba(248,113,113,0.3);">🗑 삭제</button>
       </div>
       <div class="comments-sec">
         <div class="comments-hd">댓글 <span id="cmtCount">0</span></div>
@@ -1568,7 +1571,7 @@ function openYtModal(videoId) {
   document.getElementById('modalTitle').textContent = p.title;
   document.getElementById('modalCh').textContent = p.channel || '';
   document.getElementById('modalDate').textContent = p.published_at || '';
-  document.getElementById('modalLink').href = p.url;
+  document.getElementById('ytOriginalBtn').href = p.url;
   document.getElementById('mLikeCnt').textContent = 0;
 
   const fmtNum = n => {
@@ -1580,30 +1583,28 @@ function openYtModal(videoId) {
   };
 
   // 조회수 + 바이럴 점수
-  const metaEl = document.getElementById('modalCh').parentElement;
-  let statsEl = document.getElementById('ytModalStats');
-  if (!statsEl) {
-    statsEl = document.createElement('div');
-    statsEl.id = 'ytModalStats';
-    statsEl.style.cssText = 'font-size:12px;color:var(--muted);margin-top:4px;';
-    metaEl.appendChild(statsEl);
-  }
-  statsEl.innerHTML = `▶ ${fmtNum(p.views)} 조회 &nbsp;·&nbsp; 🔥 바이럴 ${p.viral_score||0}점`;
+  document.getElementById('ytModalStats').innerHTML = `▶ ${fmtNum(p.views)} 조회 &nbsp;·&nbsp; 🔥 바이럴 ${p.viral_score||0}점`;
 
   // 설명
-  let descEl = document.getElementById('ytModalDesc');
-  if (!descEl) {
-    descEl = document.createElement('div');
-    descEl.id = 'ytModalDesc';
-    descEl.style.cssText = 'background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:1rem;margin-bottom:1rem;font-size:13px;color:var(--muted);line-height:1.7;white-space:pre-wrap;max-height:150px;overflow-y:auto;';
-    const modalBody = document.querySelector('#videoModal .modal-body');
-    const actionsEl = modalBody.querySelector('.modal-actions');
-    modalBody.insertBefore(descEl, actionsEl);
-  }
+  const descEl = document.getElementById('ytModalDesc');
   descEl.style.display = p.description ? 'block' : 'none';
   descEl.textContent = p.description || '';
 
+  // 관리자 삭제 버튼
+  const delBtn = document.getElementById('ytAdmDelBtn');
+  if (delBtn) delBtn.style.display = admLoggedIn ? '' : 'none';
+
   document.getElementById('videoModal').classList.add('open');
+}
+
+async function ytModalDel() {
+  if (!curYtModalId) return;
+  if (!confirm('삭제하면 다시 크롤링되지 않습니다. 삭제할까요?')) return;
+  await db.from('youtube_posts').update({ status: 'deleted' }).eq('video_id', curYtModalId);
+  ytPosts = ytPosts.filter(p => p.video_id !== curYtModalId);
+  renderYtGrid();
+  closeModal();
+  toast('삭제됨');
 }
 
 // 세션 인증된 경우에만 init 실행
