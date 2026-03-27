@@ -639,7 +639,7 @@ function showPlatform(name) {
   if (name==='bookmarks') renderBm();
   if (name==='admin') { renderAdmTable(); renderMlbAdmTable(); }
   if (name==='mlb') renderMlbGrid();
-  if (name==='youtube') loadYtPosts();
+  if (name==='youtube') renderYtGrid();
   history.replaceState(null, '', '#' + name);
 }
 
