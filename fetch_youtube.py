@@ -40,7 +40,7 @@ PERSONAS = {
 }
 
 # AI 필터링 키워드 (제목에 하나라도 포함되어야 저장)
-AI_FILTER_KEYWORDS = ['AI', 'ai', '인공지능', '생성형', '생성', 'ChatGPT', 'Sora', 'Kling', 'Midjourney', 'midjourney', 'runway', 'Runway', '버추얼', 'virtual', 'Virtual']
+AI_FILTER_KEYWORDS = ['ai', 'a.i', 'a,i', '인공지능', 'chatgpt', 'sora', 'kling', 'midjourney', 'runway', '버추얼', 'virtual', 'grok', 'wan2.2']
 
 # 제목 키워드로 페르소나 자동 분류
 PERSONA_TITLE_KEYWORDS = {
@@ -170,7 +170,9 @@ def main():
 
                 # URL 제거 후 AI 필터링 (URL 속 .ai 도메인 오탐지 방지)
                 description_no_url = re.sub(r'https?://\S+|www\.\S+', '', description)
-                if not any(kw in title or kw in description_no_url for kw in AI_FILTER_KEYWORDS):
+                title_lower = title.lower()
+                desc_lower = description_no_url.lower()
+                if not any(kw in title_lower or kw in desc_lower for kw in AI_FILTER_KEYWORDS):
                     continue
 
                 all_videos[vid] = {
