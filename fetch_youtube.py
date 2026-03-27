@@ -25,7 +25,7 @@ YT_VIDEOS_URL = 'https://www.googleapis.com/youtube/v3/videos'
 
 # 페르소나별 키워드 정의
 PERSONAS = {
-    'meme':      { 'label': '밈파고',          'keywords': ['뇌절 밈 AI', 'meme AI'] },
+    'meme':      { 'label': '밈파고',          'keywords': ['"뇌절 밈" "AI"', '"meme" "AI"'] },
     # 'virtual':   { 'label': '시크릿AI',         'keywords': ['버추얼 인플루언서 AI', '룩북 AI'] },
     # 'cinema':    { 'label': '방구석놀란',        'keywords': ['시네마틱 AI', '영화 AI'] },
     # 'uncanny':   { 'label': '언캐니밸리',        'keywords': ['리미널 스페이스 AI', 'mystery AI'] },
@@ -35,7 +35,7 @@ PERSONAS = {
     # 'anime':     { 'label': '2D프린터',          'keywords': ['애니메이션 AI', '애니 AI'] },
     # 'prompt':    { 'label': '프롬프트깎는장인',  'keywords': ['프롬프트 엔지니어링 AI', 'prompt AI'] },
     # 'trend':     { 'label': '루어픽',            'keywords': ['바이럴 AI', 'trend AI', 'viral AI'] },
-    'lemae':     { 'label': '레매',              'keywords': ['레깅스 AI', 'leggings AI'] },
+    'lemae':     { 'label': '레매',              'keywords': ['"레깅스" "AI"', '"leggings" "AI"'] },
 }
 
 # AI 필터링 키워드 (제목에 하나라도 포함되어야 저장)
@@ -207,7 +207,7 @@ def main():
         viral_score = calc_viral_score(views, likes, comments)
 
         # 페르소나 재분류 (제목 기반)
-        auto_persona = data['persona']
+        auto_persona = classify_persona(data['title'])
 
         enriched.append({
             'video_id': vid,
