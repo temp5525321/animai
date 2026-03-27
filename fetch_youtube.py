@@ -168,18 +168,19 @@ def main():
                 title = snippet.get('title', '')
                 description = snippet.get('description', '')
 
-                # URL 제거 후 AI 필터링 (URL 속 .ai 도메인 오탐지 방지)
+                # URL 제거 후 AI 필터링 (단어 경계 체크로 fair/media 등 오탐지 방지)
                 description_no_url = re.sub(r'https?://\S+|www\.\S+', '', description)
                 title_lower = title.lower()
                 desc_lower = description_no_url.lower()
-                if not any(kw in title_lower or kw in desc_lower for kw in AI_FILTER_KEYWORDS):
+
+                def has_ai_keyword(text):
+                    for kw in AI_FILTER_KEYWORDS:
+                        if re.search(r'(?<![a-zA-Z])' + re.escape(kw) + r'(?![a-zA-Z])', text, re.IGNORECASE):
+                            return True
+                    return False
+
+                if not has_ai_keyword(title_lower) and not has_ai_keyword(desc_lower):
                     continue
-                # 디버깅: 어떤 키워드로 통과했는지 출력
-                for kw in AI_FILTER_KEYWORDS:
-                    if kw in title_lower:
-                        print(f'    AI통과(제목): "{kw}" | {title[:40]}')
-                    if kw in desc_lower:
-                        print(f'    AI통과(설명): "{kw}" | {title[:40]}')
 
                 all_videos[vid] = {
                     'video_id': vid,

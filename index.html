@@ -560,10 +560,11 @@ async function init() {
   const hash = location.hash.replace('#','');
   const validPages = ['mlb','bookmarks','admin','youtube'];
   const startPage = validPages.includes(hash) ? hash : 'mlb';
-  showPlatform(startPage);
 
   await loadMlbPosts();
   await loadYtPosts();
+  showPlatform(startPage);
+
   const { data: { session } } = await db.auth.getSession();
   if (session?.user) {
     await onUserLogin(session.user);
