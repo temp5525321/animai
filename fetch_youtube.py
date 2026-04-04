@@ -26,7 +26,12 @@ YT_VIDEOS_URL = 'https://www.googleapis.com/youtube/v3/videos'
 
 # 페르소나별 키워드 정의
 PERSONAS = {
-    'meme':      { 'label': '밈파고',          'keywords': ['"뇌절 밈" "AI"', '"meme" "AI"'] },
+    'meme': {
+        'label': '밈파고',
+        'keywords': ['"뇌절 밈" "AI"', '"meme" "AI"'],
+        'min_views': 100000,
+        'ai_filter': True,   # AI 키워드 필터링 적용
+    },
     # 'virtual':   { 'label': '시크릿AI',         'keywords': ['버추얼 인플루언서 AI', '룩북 AI'] },
     # 'cinema':    { 'label': '방구석놀란',        'keywords': ['시네마틱 AI', '영화 AI'] },
     # 'uncanny':   { 'label': '언캐니밸리',        'keywords': ['리미널 스페이스 AI', 'mystery AI'] },
@@ -36,44 +41,43 @@ PERSONAS = {
     # 'anime':     { 'label': '2D프린터',          'keywords': ['애니메이션 AI', '애니 AI'] },
     # 'prompt':    { 'label': '프롬프트깎는장인',  'keywords': ['프롬프트 엔지니어링 AI', 'prompt AI'] },
     # 'trend':     { 'label': '루어픽',            'keywords': ['바이럴 AI', 'trend AI', 'viral AI'] },
-    'lemae':     { 'label': '레매',              'keywords': ['"레깅스" "AI"', '"leggings" "AI"'] },
+    'asmr': {
+        'label': 'AI ASMR',
+        'keywords': ['AI ASMR', '인공지능 ASMR', 'AI asmr roleplay'],
+        'min_views': 10000,
+        'ai_filter': False,  # 키워드 자체가 AI 포함 → 필터 불필요
+    },
+    'military': {
+        'label': 'AI 군대',
+        'keywords': ['AI 군대', 'AI 밀리터리', '인공지능 전쟁', 'AI 군사'],
+        'min_views': 10000,
+        'ai_filter': False,
+    },
+    'lopan': {
+        'label': 'AI 로판',
+        'keywords': ['AI 로판', 'AI 로맨스판타지', '인공지능 로판', 'AI 웹툰'],
+        'min_views': 10000,
+        'ai_filter': False,
+    },
 }
 
-# AI 필터링 키워드 (제목에 하나라도 포함되어야 저장)
+# AI 필터링 키워드 (ai_filter: True인 페르소나에만 적용)
 AI_FILTER_KEYWORDS = ['ai', 'a.i', 'a,i', '인공지능', 'chatgpt', 'sora', 'kling', 'midjourney', 'runway', '버추얼', 'virtual', 'grok', 'wan2.2']
 
-# 제목 키워드로 페르소나 자동 분류
-PERSONA_TITLE_KEYWORDS = {
-    'meme':      ['밈', '웃긴', '개웃', 'ㅋㅋ', '뇌절', '병맛', '유머'],
-    'virtual':   ['가상인간', '버추얼', '인플루언서', '룩북', '패션', '하이패션'],
-    'cinema':    ['영화', '시네마', '단편', '감독', '트레일러', '시네마틱'],
-    'uncanny':   ['소름', '공포', '무서운', '기괴', '불쾌', '리미널'],
-    'cyberpunk': ['조선', '역사', '한국', '사이버펑크', '대체역사', '한복'],
-    'healing':   ['힐링', '아트', '그림', '풍경', '로파이', 'lofi', '파스텔'],
-    'music':     ['음악', '노래', '커버', '작곡', '비트', '댄스', '그루브'],
-    'anime':     ['애니', '일러스트', '만화', '2D', '캐릭터', '오타쿠'],
-    'prompt':    ['프롬프트', '사용법', '튜토리얼', '미드저니', '달리', '생성'],
-    'trend':     ['트렌드', '최신', '2025', '신기한', '바이럴', '꿀잼'],
-    'lemae':     ['레깅스', '홈트', '요가', '필라테스', '스트레칭', '운동'],
-}
-
-def classify_persona(title):
-    """제목 키워드로 페르소나 자동 분류"""
-    title_lower = title.lower()
-    for persona, keywords in PERSONA_TITLE_KEYWORDS.items():
-        for kw in keywords:
-            if kw.lower() in title_lower:
-                return persona
-    return 'trend'  # 분류 안 되면 루어픽으로
+def has_ai_keyword(text):
+    for kw in AI_FILTER_KEYWORDS:
+        if re.search(r'(?<![a-zA-Z])' + re.escape(kw) + r'(?![a-zA-Z])', text, re.IGNORECASE):
+            return True
+    return False
 
 def calc_viral_score(views, likes, comments):
     """바이럴 점수 계산 (0~100)"""
     if not views or views == 0:
         return 0
-    like_ratio = (likes / views) * 100      # 좋아요 비율
-    comment_ratio = (comments / views) * 100  # 댓글 비율
+    like_ratio = (likes / views) * 100
+    comment_ratio = (comments / views) * 100
     score = (like_ratio * 60) + (comment_ratio * 40)
-    return round(min(score * 10, 100), 2)  # 100점 만점으로 정규화
+    return round(min(score * 10, 100), 2)
 
 def get_existing_video_ids():
     """이미 저장된 영상 ID 조회"""
@@ -86,9 +90,8 @@ def get_existing_video_ids():
     return set(item['video_id'] for item in res.json())
 
 def search_videos(keyword, max_results=50):
-    """YouTube API로 영상 검색 (최근 3개월, 한국어)"""
-    # 3개월 전 날짜
-    three_months_ago = (datetime.now(KST) - timedelta(days=90)).strftime('%Y-%m-%dT%H:%M:%SZ')
+    """YouTube API로 영상 검색 (최근 6개월, 조회수 순)"""
+    six_months_ago = (datetime.now(KST) - timedelta(days=180)).strftime('%Y-%m-%dT%H:%M:%SZ')
 
     params = {
         'part': 'snippet',
@@ -98,7 +101,7 @@ def search_videos(keyword, max_results=50):
         'order': 'viewCount',
         'relevanceLanguage': 'ko',
         'regionCode': 'KR',
-        'publishedAfter': three_months_ago,
+        'publishedAfter': six_months_ago,
         'key': YOUTUBE_API_KEY
     }
     res = requests.get(YT_SEARCH_URL, params=params)
@@ -126,7 +129,6 @@ def get_video_stats(video_ids):
         s = item.get('statistics', {})
         snippet = item.get('snippet', {})
         status = item.get('status', {})
-        # 임베드 불가 영상 스킵
         if not status.get('embeddable', True):
             print(f'  임베드 불가 스킵: {snippet.get("title", "")[:40]}')
             continue
@@ -175,19 +177,11 @@ def main():
                 title = snippet.get('title', '')
                 description = snippet.get('description', '')
 
-                # URL 제거 후 AI 필터링 (단어 경계 체크로 fair/media 등 오탐지 방지)
-                description_no_url = re.sub(r'https?://\S+|www\.\S+', '', description)
-                title_lower = title.lower()
-                desc_lower = description_no_url.lower()
-
-                def has_ai_keyword(text):
-                    for kw in AI_FILTER_KEYWORDS:
-                        if re.search(r'(?<![a-zA-Z])' + re.escape(kw) + r'(?![a-zA-Z])', text, re.IGNORECASE):
-                            return True
-                    return False
-
-                if not has_ai_keyword(title_lower) and not has_ai_keyword(desc_lower):
-                    continue
+                # AI 필터링 (페르소나별 설정에 따라)
+                if persona.get('ai_filter', False):
+                    description_no_url = re.sub(r'https?://\S+|www\.\S+', '', description)
+                    if not has_ai_keyword(title.lower()) and not has_ai_keyword(description_no_url.lower()):
+                        continue
 
                 all_videos[vid] = {
                     'video_id': vid,
@@ -207,11 +201,11 @@ def main():
     video_ids = list(all_videos.keys())
     stats = {}
     for i in range(0, len(video_ids), 50):
-        batch = video_ids[i:i+50]
+        batch = video_ids[i:i + 50]
         batch_stats = get_video_stats(batch)
         stats.update(batch_stats)
 
-    # 바이럴 점수 계산 + 필터링 (조회수 10만 이상)
+    # 바이럴 점수 계산 + 페르소나별 조회수 필터링
     enriched = []
     for vid, data in all_videos.items():
         s = stats.get(vid, {})
@@ -220,17 +214,13 @@ def main():
         comments = s.get('comments', 0)
         description = s.get('description', '')
 
-        if views < 100000:  # 10만 이하 스킵
-            # 레매는 AI 레깅스 영상이 적으므로 1만 이상으로 낮춤
-            if data['persona'] == 'lemae' and views < 10000:
-                continue
-            elif data['persona'] != 'lemae':
-                continue
+        persona_key = data['persona']
+        min_views = PERSONAS[persona_key]['min_views']
+
+        if views < min_views:
+            continue
 
         viral_score = calc_viral_score(views, likes, comments)
-
-        # 페르소나 재분류 하지 않고 검색한 페르소나 그대로 유지
-        auto_persona = data['persona']
 
         enriched.append({
             'video_id': vid,
@@ -240,7 +230,7 @@ def main():
             'thumb': data['thumb'],
             'url': data['url'],
             'embed_url': data['embed_url'],
-            'persona': auto_persona,
+            'persona': persona_key,
             'keyword': data['keyword'],
             'views': views,
             'likes': likes,
@@ -253,7 +243,7 @@ def main():
 
     # 바이럴 점수 높은 순 정렬
     enriched.sort(key=lambda x: x['viral_score'], reverse=True)
-    print(f'\n조회수 10만 이상 영상: {len(enriched)}개')
+    print(f'\n조회수 기준 통과 영상: {len(enriched)}개')
 
     if not enriched:
         print('저장할 영상이 없습니다.')
