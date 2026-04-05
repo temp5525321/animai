@@ -329,9 +329,16 @@ footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center;
   <div class="topic-tabs" id="ytPersonaTabs">
     <button class="topic-tab on" onclick="setYtPersona('all',this)">전체</button>
     <button class="topic-tab" onclick="setYtPersona('meme',this)">밈파고</button>
-    <button class="topic-tab" onclick="setYtPersona('asmr',this)">AI ASMR</button>
-    <button class="topic-tab" onclick="setYtPersona('military',this)">AI 군대</button>
-    <button class="topic-tab" onclick="setYtPersona('lopan',this)">AI 로판</button>
+    <button class="topic-tab" onclick="setYtPersona('virtual',this)">시크릿AI</button>
+    <button class="topic-tab" onclick="setYtPersona('cinema',this)">방구석놀란</button>
+    <button class="topic-tab" onclick="setYtPersona('uncanny',this)">언캐니밸리</button>
+    <button class="topic-tab" onclick="setYtPersona('cyberpunk',this)">조선사이버펑크</button>
+    <button class="topic-tab" onclick="setYtPersona('healing',this)">픽셀테라피</button>
+    <button class="topic-tab" onclick="setYtPersona('music',this)">그루브생성기</button>
+    <button class="topic-tab" onclick="setYtPersona('anime',this)">2D프린터</button>
+    <button class="topic-tab" onclick="setYtPersona('prompt',this)">프롬프트깎는장인</button>
+    <button class="topic-tab" onclick="setYtPersona('trend',this)">루어픽</button>
+    <button class="topic-tab" onclick="setYtPersona('lemae',this)">레매</button>
   </div>
   <div class="toolbar">
     <div class="search-box">
@@ -836,11 +843,16 @@ async function openModal(ytId) {
   bb.classList.toggle('active',bookmarks.includes(ytId));
   bb.textContent=bookmarks.includes(ytId)?'★ 북마크됨':'☆ 북마크';
   document.getElementById('videoModal').classList.add('open');
+  history.pushState({ modal: 'yt', id: ytId }, '', '#modal');
   await Promise.all([loadCmts(ytId),recordWatch(ytId)]);
 }
 
 function closeModalBg(e) { if(e.target===document.getElementById('videoModal')) closeModal(); }
-function closeModal() { document.getElementById('videoModal').classList.remove('open'); document.getElementById('modalVideo').innerHTML=''; }
+function closeModal() {
+  document.getElementById('videoModal').classList.remove('open');
+  document.getElementById('modalVideo').innerHTML='';
+  if (location.hash === '#modal') history.back();
+}
 
 async function mLike() {
   await toggleLike({stopPropagation:()=>{}},curModalId);
@@ -1430,15 +1442,16 @@ async function openMlbModal(postId) {
   }
 
   document.getElementById('mlbModal').classList.add('open');
+  history.pushState({ modal: 'mlb', id: postId }, '', '#modal');
   await loadMlbCmts(postId);
 }
 
 function closeMlbModalBg(e) { if(e.target===document.getElementById('mlbModal')) closeMlbModal(); }
 function closeMlbModal() {
-  // 영상 정지
   document.querySelectorAll('#mlbModalThumb video').forEach(v => { v.pause(); v.src=''; });
   document.getElementById('mlbModalThumb').innerHTML = '';
   document.getElementById('mlbModal').classList.remove('open');
+  if (location.hash === '#modal') history.back();
 }
 
 async function mlbLike() {
@@ -1490,7 +1503,10 @@ let ytPosts = [];
 let curYtPersona = 'all';
 
 const PERSONA_LABELS = {
-  all: '전체', meme: '밈파고', asmr: 'AI ASMR', military: 'AI 군대', lopan: 'AI 로판',
+  all: '전체', meme: '밈파고', virtual: '시크릿AI', cinema: '방구석놀란',
+  uncanny: '언캐니밸리', cyberpunk: '조선사이버펑크', healing: '픽셀테라피',
+  music: '그루브생성기', anime: '2D프린터', prompt: '프롬프트깎는장인',
+  trend: '루어픽', lemae: '레매'
 };
 
 async function loadYtPosts() {
@@ -1602,6 +1618,21 @@ async function ytModalDel() {
   closeModal();
   toast('삭제됨');
 }
+
+// 뒤로가기 시 모달 닫기
+window.addEventListener('popstate', function(e) {
+  const ytModal = document.getElementById('videoModal');
+  const mlbModal = document.getElementById('mlbModal');
+  if (ytModal && ytModal.classList.contains('open')) {
+    ytModal.classList.remove('open');
+    document.getElementById('modalVideo').innerHTML = '';
+  }
+  if (mlbModal && mlbModal.classList.contains('open')) {
+    document.querySelectorAll('#mlbModalThumb video').forEach(v => { v.pause(); v.src=''; });
+    document.getElementById('mlbModalThumb').innerHTML = '';
+    mlbModal.classList.remove('open');
+  }
+});
 
 // 세션 인증된 경우에만 init 실행
 if (sessionStorage.getItem(GATE_KEY) === '1') {
