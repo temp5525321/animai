@@ -71,13 +71,17 @@ def has_ai_keyword(text):
     return False
 
 def calc_viral_score(views, likes, comments):
-    """바이럴 점수 계산 (0~100)"""
+    """바이럴 점수 계산 (0~100) - 참여율 × 조회수 규모 보정"""
+    import math
     if not views or views == 0:
         return 0
-    like_ratio = (likes / views) * 100
-    comment_ratio = (comments / views) * 100
-    score = (like_ratio * 60) + (comment_ratio * 40)
-    return round(min(score * 10, 100), 2)
+    like_ratio = likes / views        # 좋아요 비율
+    comment_ratio = comments / views  # 댓글 비율
+    engagement = (like_ratio * 0.6) + (comment_ratio * 0.4)  # 참여율
+    # 조회수 규모 보정 (로그 스케일: 10만=1.0, 100만=1.25, 1000만=1.5)
+    view_boost = math.log10(max(views, 1)) / math.log10(100000)
+    score = engagement * view_boost * 1000
+    return round(min(score, 100), 2)
 
 def get_existing_video_ids():
     """이미 저장된 영상 ID 조회"""

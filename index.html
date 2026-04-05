@@ -70,6 +70,8 @@ nav { position: sticky; top: 0; z-index: 100; background: rgba(15,8,8,0.95); bac
 .search-box input { background: none; border: none; outline: none; color: var(--text); font-size: 13px; font-family: 'Noto Sans KR'; width: 100%; }
 .search-box input::placeholder { color: var(--muted); }
 .sort-sel { background: var(--bg2); border: 1px solid var(--border); color: var(--muted); font-size: 12px; padding: 6px 10px; border-radius: 8px; outline: none; font-family: 'Noto Sans KR'; cursor: pointer; }
+#viralTooltipBtn:hover { color: var(--text); border-color: var(--text); }
+#viralTooltipBtn:hover ~ #viralTooltip { display:block !important; }
 .fetch-btn { font-family: 'Noto Sans KR'; font-size: 12px; padding: 7px 14px; border-radius: 8px; border: 1px solid var(--border2); background: var(--glow); color: var(--accent); cursor: pointer; font-weight: 700; transition: all 0.15s; }
 .fetch-btn:hover { border-color: var(--accent); }
 .fetch-btn:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -338,11 +340,19 @@ footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center;
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
       <input type="text" id="ytSearchInput" placeholder="영상 검색..." oninput="renderYtGrid()">
     </div>
-    <select class="sort-sel" id="ytSortSel" onchange="renderYtGrid()">
-      <option value="viral">바이럴순</option>
-      <option value="newest">최신순</option>
-      <option value="views">조회수순</option>
-    </select>
+    <div style="display:flex;align-items:center;gap:6px;">
+      <select class="sort-sel" id="ytSortSel" onchange="renderYtGrid()">
+        <option value="views">조회수순</option>
+        <option value="viral">바이럴순</option>
+        <option value="newest">최신순</option>
+      </select>
+      <div style="position:relative;display:inline-flex;align-items:center;">
+        <span id="viralTooltipBtn" style="width:16px;height:16px;border-radius:50%;border:1px solid var(--muted);color:var(--muted);font-size:10px;display:inline-flex;align-items:center;justify-content:center;cursor:default;user-select:none;">?</span>
+        <div id="viralTooltip" style="display:none;position:absolute;bottom:calc(100% + 6px);right:0;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:8px 12px;font-size:11px;color:var(--muted);white-space:nowrap;z-index:100;line-height:1.6;">
+          바이럴 점수 공식 :<br>참여율(좋아요 60% + 댓글 40%) × 조회수 규모 보정
+        </div>
+      </div>
+    </div>
   </div>
   <div class="section">
     <div class="sec-label" id="ytSecLabel">전체 영상</div>
@@ -1505,9 +1515,6 @@ let curYtPersona = 'all';
 
 const PERSONA_LABELS = {
   all: '전체', meme: '밈파고', asmr: 'AI ASMR', military: 'AI 군대', lopan: 'AI 로판',
-  uncanny: '언캐니밸리', cyberpunk: '조선사이버펑크', healing: '픽셀테라피',
-  music: '그루브생성기', anime: '2D프린터', prompt: '프롬프트깎는장인',
-
 };
 
 async function loadYtPosts() {
@@ -1530,7 +1537,7 @@ function setYtPersona(persona, el) {
 
 function renderYtGrid() {
   const q = document.getElementById('ytSearchInput')?.value.toLowerCase() || '';
-  const sort = document.getElementById('ytSortSel')?.value || 'viral';
+  const sort = document.getElementById('ytSortSel')?.value || 'views';
   let list = ytPosts.filter(p => {
     if (curYtPersona !== 'all' && p.persona !== curYtPersona) return false;
     if (q && !p.title.toLowerCase().includes(q) && !(p.channel||'').toLowerCase().includes(q)) return false;
