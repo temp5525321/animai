@@ -1617,19 +1617,19 @@ async function ytModalDel() {
 }
 
 // 뒤로가기 시 모달 닫기
+history.pushState(null, '', location.href); // 진입 시 히스토리 미리 추가
 window.addEventListener('popstate', function() {
   const ytModal = document.getElementById('videoModal');
   const mlbModal = document.getElementById('mlbModal');
   if (ytModal && ytModal.classList.contains('open')) {
     ytModal.classList.remove('open');
     document.getElementById('modalVideo').innerHTML = '';
-    history.pushState(null, '', location.href);
   } else if (mlbModal && mlbModal.classList.contains('open')) {
     document.querySelectorAll('#mlbModalThumb video').forEach(v => { v.pause(); v.src=''; });
     document.getElementById('mlbModalThumb').innerHTML = '';
     mlbModal.classList.remove('open');
-    history.pushState(null, '', location.href);
   }
+  history.pushState(null, '', location.href); // 항상 재추가 → 사이트 밖 못나감
 });
 
 // 툴팁 hover 처리
