@@ -845,7 +845,7 @@ async function openModal(ytId) {
   bb.classList.toggle('active',bookmarks.includes(ytId));
   bb.textContent=bookmarks.includes(ytId)?'★ 북마크됨':'☆ 북마크';
   document.getElementById('videoModal').classList.add('open');
-  location.hash = 'modal';
+  history.pushState(null, '', location.href);
   await Promise.all([loadCmts(ytId),recordWatch(ytId)]);
 }
 
@@ -853,7 +853,6 @@ function closeModalBg(e) { if(e.target===document.getElementById('videoModal')) 
 function closeModal() {
   document.getElementById('videoModal').classList.remove('open');
   document.getElementById('modalVideo').innerHTML='';
-  if (location.hash === '#modal') history.back();
 }
 
 async function mLike() {
@@ -1444,7 +1443,7 @@ async function openMlbModal(postId) {
   }
 
   document.getElementById('mlbModal').classList.add('open');
-  location.hash = 'modal';
+  history.pushState(null, '', location.href);
   await loadMlbCmts(postId);
 }
 
@@ -1453,7 +1452,6 @@ function closeMlbModal() {
   document.querySelectorAll('#mlbModalThumb video').forEach(v => { v.pause(); v.src=''; });
   document.getElementById('mlbModalThumb').innerHTML = '';
   document.getElementById('mlbModal').classList.remove('open');
-  if (location.hash === '#modal') history.back();
 }
 
 async function mlbLike() {
@@ -1618,20 +1616,19 @@ async function ytModalDel() {
   toast('삭제됨');
 }
 
-// 뒤로가기 시 모달 닫기 (hashchange 방식)
-window.addEventListener('hashchange', function() {
-  if (location.hash !== '#modal') {
-    const ytModal = document.getElementById('videoModal');
-    const mlbModal = document.getElementById('mlbModal');
-    if (ytModal && ytModal.classList.contains('open')) {
-      ytModal.classList.remove('open');
-      document.getElementById('modalVideo').innerHTML = '';
-    }
-    if (mlbModal && mlbModal.classList.contains('open')) {
-      document.querySelectorAll('#mlbModalThumb video').forEach(v => { v.pause(); v.src=''; });
-      document.getElementById('mlbModalThumb').innerHTML = '';
-      mlbModal.classList.remove('open');
-    }
+// 뒤로가기 시 모달 닫기
+window.addEventListener('popstate', function() {
+  const ytModal = document.getElementById('videoModal');
+  const mlbModal = document.getElementById('mlbModal');
+  if (ytModal && ytModal.classList.contains('open')) {
+    ytModal.classList.remove('open');
+    document.getElementById('modalVideo').innerHTML = '';
+    history.pushState(null, '', location.href);
+  } else if (mlbModal && mlbModal.classList.contains('open')) {
+    document.querySelectorAll('#mlbModalThumb video').forEach(v => { v.pause(); v.src=''; });
+    document.getElementById('mlbModalThumb').innerHTML = '';
+    mlbModal.classList.remove('open');
+    history.pushState(null, '', location.href);
   }
 });
 
