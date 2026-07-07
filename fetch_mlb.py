@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 import requests
 import random
 from bs4 import BeautifulSoup
@@ -30,7 +31,7 @@ BOARD_URL = f'{BASE_URL}/mp/b.php'
 def login():
     session = requests.Session()
     session.headers.update({
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36',
         'Referer': 'https://secure.donga.com/mlbpark/login.php',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'ko-KR,ko;q=0.9'
@@ -113,8 +114,16 @@ def fetch_posts(session, cutoff_date):
                     'subselect': 'sct',
                     'user': ''
                 }
-                res = session.get(BOARD_URL, params=params)
-                if res.status_code != 200:
+                time.sleep(random.uniform(2.0, 4.0))
+                res = None
+                for attempt in range(3):
+                    try:
+                        res = session.get(BOARD_URL, params=params, timeout=20)
+                        break
+                    except Exception as e:
+                        print(f'  요청 오류 (시도 {attempt+1}/3): {e}')
+                        time.sleep(random.uniform(3.0, 6.0))
+                if res is None or res.status_code != 200:
                     break
 
                 soup = BeautifulSoup(res.text, 'html.parser')
@@ -224,7 +233,17 @@ def fetch_posts(session, cutoff_date):
 def fetch_post_detail(session, post):
     """게시물 상세 페이지에서 본문 전체, 이미지, 영상 URL 추출"""
     try:
-        res = session.get(post['url'], timeout=15)
+        time.sleep(random.uniform(1.0, 2.5))
+        res = None
+        for attempt in range(3):
+            try:
+                res = session.get(post['url'], timeout=20)
+                break
+            except Exception as e:
+                print(f'  상세 요청 오류 (시도 {attempt+1}/3): {e}')
+                time.sleep(random.uniform(3.0, 5.0))
+        if res is None:
+            continue
         if res.status_code != 200:
             return post
 
@@ -423,7 +442,7 @@ def main():
     if not session:
         print('세션 생성 실패, 비로그인으로 시도합니다.')
         session = requests.Session()
-        session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36'})
+        session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36'})
 
     existing = get_existing_post_ids()
     print(f'기존 게시물 수: {len(existing)}개')
