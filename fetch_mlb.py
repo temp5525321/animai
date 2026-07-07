@@ -243,7 +243,7 @@ def fetch_post_detail(session, post):
                 print(f'  상세 요청 오류 (시도 {attempt+1}/3): {e}')
                 time.sleep(random.uniform(3.0, 5.0))
         if res is None:
-            continue
+            return post
         if res.status_code != 200:
             return post
 
