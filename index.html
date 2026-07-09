@@ -220,6 +220,10 @@ footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center;
       <svg class="nav-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/></svg>
       <span>유튜브</span>
     </div>
+    <div class="nav-ptab" id="ptab-arca" onclick="showPlatform('arca',this)">
+      <svg class="nav-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M7 4v16M17 4v16M2 9h5M2 15h5M17 9h5M17 15h5"/></svg>
+      <span>아카라이브</span>
+    </div>
   </div>
   <div class="nav-right">
     <div id="userArea">
@@ -357,6 +361,57 @@ footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center;
     <div class="sec-label" id="ytSecLabel">전체 영상</div>
     <div class="grid" id="ytGrid"></div>
     <div class="empty-st" id="ytEmptyState" style="display:none;">영상이 없습니다.</div>
+  </div>
+</div>
+
+<!-- 아카라이브 PAGE -->
+<div class="page" id="page-arca">
+  <div class="hero">
+    <h1><span class="t1">AI </span><span class="t2">ARCA</span></h1>
+    <p>아카라이브 Ai실사 채널 — Ai영상 큐레이션.</p>
+    <div class="stats-row">
+      <div class="stat"><div class="stat-num" id="arcaTotalCount">0</div><div class="stat-label">총 영상</div></div>
+    </div>
+  </div>
+  <div class="toolbar">
+    <div class="search-box">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" id="arcaSearchInput" placeholder="영상 검색..." oninput="renderArcaGrid()">
+    </div>
+    <select class="sort-sel" id="arcaSortSel" onchange="renderArcaGrid()">
+      <option value="newest">최신순</option>
+      <option value="views">조회수순</option>
+      <option value="rating">추천순</option>
+    </select>
+  </div>
+  <div class="section">
+    <div class="sec-label" id="arcaSecLabel">전체 영상</div>
+    <div class="grid" id="arcaGrid"></div>
+    <div class="empty-st" id="arcaEmptyState" style="display:none;">영상이 없습니다.</div>
+  </div>
+</div>
+
+<!-- 아카라이브 영상 모달 -->
+<div class="modal-bg" id="arcaModal" onclick="closeArcaModalBg(event)">
+  <div class="modal">
+    <button class="modal-close" onclick="closeArcaModal()">✕</button>
+    <div class="modal-body" style="padding-top:1.5rem;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:1rem;">
+        <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:4px;background:#00d1b2;color:#fff;">아카라이브</span>
+        <span style="font-size:11px;color:var(--muted);">Ai영상 · AI</span>
+      </div>
+      <div class="modal-title" id="arcaModalTitle"></div>
+      <div style="display:flex;align-items:center;gap:12px;margin:6px 0 1rem;font-size:12px;color:var(--muted);">
+        <span id="arcaModalAuthor"></span>
+        <span id="arcaModalDate"></span>
+        <span id="arcaModalStats"></span>
+      </div>
+      <div id="arcaModalVideo" style="margin-bottom:1rem;"></div>
+      <div class="modal-actions">
+        <a class="modal-btn" id="arcaOriginalBtn" href="#" target="_blank" style="text-decoration:none;display:flex;align-items:center;">아카라이브에서 보기 ↗</a>
+        <button class="modal-btn" id="arcaAdmDelBtn" onclick="arcaModalDel()" style="display:none;color:#f87171;border-color:rgba(248,113,113,0.3);">🗑 삭제</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -559,17 +614,20 @@ let mlbBookmarks = [];
 let mlbLikedIds = [];
 let curMlbModalId = null;
 let curMlbCategory = 'all';
+let arcaPosts = [];
+let curArcaModalId = null;
+const ARCA_PROXY = 'https://aigathering-proxy.temp5525321.workers.dev';
 
 // ── 초기화 ──
 async function init() {
   const hash = location.hash.replace('#','');
-  const validPages = ['mlb','bookmarks','admin','youtube'];
+  const validPages = ['mlb','bookmarks','admin','youtube','arca'];
   const startPage = validPages.includes(hash) ? hash : 'mlb';
 
   showPlatform(startPage);
 
   // 데이터 병렬 로드
-  await Promise.all([loadMlbPosts(), loadYtPosts()]);
+  await Promise.all([loadMlbPosts(), loadYtPosts(), loadArcaPosts()]);
 
   const { data: { session } } = await db.auth.getSession();
   if (session?.user) {
@@ -646,6 +704,7 @@ function showPlatform(name) {
   if (name==='admin') { renderAdmTable(); renderMlbAdmTable(); }
   if (name==='mlb') renderMlbGrid();
   if (name==='youtube') renderYtGrid();
+  if (name==='arca') renderArcaGrid();
   history.replaceState(null, '', '#' + name);
 }
 
@@ -1616,11 +1675,108 @@ async function ytModalDel() {
   toast('삭제됨');
 }
 
+// ── 아카라이브 ──
+async function loadArcaPosts() {
+  const { data, error } = await db.from('arca_posts').select('*').eq('status','approved').order('post_date',{ascending:false, nullsFirst:false});
+  if (error) { console.error('아카 로드 오류:', error.message); return; }
+  arcaPosts = data || [];
+  if (curPlatform === 'arca') renderArcaGrid();
+  const el = document.getElementById('arcaTotalCount');
+  if (el) el.textContent = arcaPosts.length;
+}
+
+function renderArcaGrid() {
+  const q = document.getElementById('arcaSearchInput')?.value.toLowerCase() || '';
+  const sort = document.getElementById('arcaSortSel')?.value || 'newest';
+  let list = arcaPosts.filter(p => {
+    if (q && !p.title.toLowerCase().includes(q) && !(p.author||'').toLowerCase().includes(q)) return false;
+    return true;
+  });
+  if (sort === 'views') list.sort((a,b) => (b.views||0) - (a.views||0));
+  else if (sort === 'rating') list.sort((a,b) => (b.rating||0) - (a.rating||0));
+  else list.sort((a,b) => new Date(b.post_date||b.created_at) - new Date(a.post_date||a.created_at));
+
+  const grid = document.getElementById('arcaGrid');
+  const empty = document.getElementById('arcaEmptyState');
+  if (!grid) return;
+  if (!list.length) { grid.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  grid.innerHTML = list.map(p => buildArcaCard(p)).join('');
+}
+
+function arcaFmtNum(n) {
+  if (!n) return '0';
+  if (n >= 10000) return (n/10000).toFixed(1).replace(/\.0$/,'') + '만';
+  if (n >= 1000) return Math.floor(n/1000) + 'k';
+  return String(n);
+}
+
+function buildArcaCard(p) {
+  const thumb = `${ARCA_PROXY}/?arcaThumb=${p.post_id}`;
+  return `<div class="card" id="arcacard-${p.post_id}">
+    <div class="thumb" style="cursor:pointer;" onclick="openArcaModal('${p.post_id}')">
+      <img src="${thumb}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'">
+      <div class="play-ov"><div class="play-circle" style="background:linear-gradient(135deg,#00d1b2,#0891b2);"><div class="play-tri"></div></div></div>
+      <span class="platform-badge" style="background:#00d1b2;color:#fff;">ARCA</span>
+    </div>
+    <div class="card-body" onclick="openArcaModal('${p.post_id}')" style="cursor:pointer;">
+      <div class="card-title">${p.title}</div>
+      <div class="card-meta" style="margin-top:8px;">
+        <span class="card-ch"><span class="ch-dot" style="background:rgba(0,209,178,0.15);border-color:rgba(0,209,178,0.3);color:#00d1b2;">${(p.author||'?')[0]}</span>${p.author||'익명'}</span>
+        <span class="card-date">${(p.post_date||p.created_at||'').slice(0,10)}</span>
+      </div>
+      <div class="views-info">👁 ${arcaFmtNum(p.views)} · 👍 ${arcaFmtNum(p.rating)}</div>
+    </div>
+  </div>`;
+}
+
+function openArcaModal(postId) {
+  const p = arcaPosts.find(p => String(p.post_id) === String(postId)); if (!p) return;
+  curArcaModalId = postId;
+  document.getElementById('arcaModalTitle').textContent = p.title;
+  document.getElementById('arcaModalAuthor').textContent = p.author || '익명';
+  document.getElementById('arcaModalDate').textContent = (p.post_date||p.created_at||'').slice(0,10);
+  document.getElementById('arcaModalStats').textContent = `👁 ${arcaFmtNum(p.views)} · 👍 ${arcaFmtNum(p.rating)}`;
+  document.getElementById('arcaOriginalBtn').href = p.url;
+
+  // 영상: 워커가 재생 시점에 아카에서 신선한 서명 URL을 추출 → 302 redirect.
+  // referrerpolicy=no-referrer로 namu.la 핫링크 차단 우회.
+  document.getElementById('arcaModalVideo').innerHTML =
+    `<video controls autoplay playsinline referrerpolicy="no-referrer"
+       poster="${ARCA_PROXY}/?arcaThumb=${p.post_id}"
+       src="${ARCA_PROXY}/?arca=${p.post_id}"
+       style="width:100%;border-radius:8px;background:#000;display:block;max-height:70vh;"></video>`;
+
+  const delBtn = document.getElementById('arcaAdmDelBtn');
+  if (delBtn) delBtn.style.display = admLoggedIn ? '' : 'none';
+
+  document.getElementById('arcaModal').classList.add('open');
+  history.pushState(null, '', location.href);
+}
+
+function closeArcaModalBg(e) { if (e.target === document.getElementById('arcaModal')) closeArcaModal(); }
+function closeArcaModal() {
+  document.querySelectorAll('#arcaModalVideo video').forEach(v => { v.pause(); v.src=''; });
+  document.getElementById('arcaModalVideo').innerHTML = '';
+  document.getElementById('arcaModal').classList.remove('open');
+}
+
+async function arcaModalDel() {
+  if (!curArcaModalId) return;
+  if (!confirm('삭제하면 다시 크롤링되지 않습니다. 삭제할까요?')) return;
+  await db.from('arca_posts').update({ status: 'deleted' }).eq('post_id', curArcaModalId);
+  arcaPosts = arcaPosts.filter(p => String(p.post_id) !== String(curArcaModalId));
+  renderArcaGrid();
+  closeArcaModal();
+  toast('삭제됨');
+}
+
 // 뒤로가기 시 모달 닫기
 history.pushState(null, '', location.href); // 진입 시 히스토리 미리 추가
 window.addEventListener('popstate', function() {
   const ytModal = document.getElementById('videoModal');
   const mlbModal = document.getElementById('mlbModal');
+  const arcaModal = document.getElementById('arcaModal');
   if (ytModal && ytModal.classList.contains('open')) {
     ytModal.classList.remove('open');
     document.getElementById('modalVideo').innerHTML = '';
@@ -1628,6 +1784,10 @@ window.addEventListener('popstate', function() {
     document.querySelectorAll('#mlbModalThumb video').forEach(v => { v.pause(); v.src=''; });
     document.getElementById('mlbModalThumb').innerHTML = '';
     mlbModal.classList.remove('open');
+  } else if (arcaModal && arcaModal.classList.contains('open')) {
+    document.querySelectorAll('#arcaModalVideo video').forEach(v => { v.pause(); v.src=''; });
+    document.getElementById('arcaModalVideo').innerHTML = '';
+    arcaModal.classList.remove('open');
   }
   history.pushState(null, '', location.href); // 항상 재추가 → 사이트 밖 못나감
 });
