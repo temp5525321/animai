@@ -1742,19 +1742,14 @@ function openArcaModal(postId) {
   document.getElementById('arcaOriginalBtn').href = p.url;
 
   // 아카는 데이터센터 IP를 차단해 서버 프록시 재생이 불가.
-  // 방문자 브라우저(집 IP)가 아카에서 직접 재생하도록 새 탭 링크아웃 + 미리보기 썸네일.
+  // 방문자 브라우저(집 IP)가 iframe 안에서 아카 글을 직접 로드 → 영상이 모달 안에서 재생됨.
   document.getElementById('arcaModalVideo').innerHTML =
-    `<a href="${p.url}" target="_blank" rel="noopener"
-        style="position:relative;display:block;border-radius:8px;overflow:hidden;background:#000;text-decoration:none;">
-       <img src="thumbs/${p.post_id}.webp" alt="" onerror="this.style.display='none'"
-         style="width:100%;display:block;max-height:70vh;object-fit:contain;background:#000;">
-       <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:rgba(0,0,0,0.25);">
-         <div style="width:64px;height:64px;border-radius:50%;background:rgba(0,209,178,0.92);display:flex;align-items:center;justify-content:center;">
-           <div style="width:0;height:0;border-left:22px solid #fff;border-top:14px solid transparent;border-bottom:14px solid transparent;margin-left:6px;"></div>
-         </div>
-         <span style="color:#fff;font-size:13px;font-weight:700;background:rgba(0,0,0,0.55);padding:6px 14px;border-radius:20px;">아카라이브에서 영상 재생 ↗</span>
-       </div>
-     </a>`;
+    `<div style="display:flex;justify-content:flex-end;margin-bottom:6px;">
+       <a href="${p.url}" target="_blank" rel="noopener" style="font-size:12px;color:var(--muted);text-decoration:none;">새 탭에서 열기 ↗</a>
+     </div>
+     <iframe src="${p.url}" loading="lazy"
+       style="width:100%;height:72vh;border:1px solid var(--border);border-radius:8px;background:#000;display:block;"
+       allow="autoplay; fullscreen; encrypted-media"></iframe>`;
 
   const delBtn = document.getElementById('arcaAdmDelBtn');
   if (delBtn) delBtn.style.display = admLoggedIn ? '' : 'none';
