@@ -40,6 +40,34 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
+    // ── 진단: ?arcaDebug=<글번호> → 워커가 아카에서 받은 응답 상태 확인 ──
+    const dbgId = url.searchParams.get('arcaDebug');
+    if (dbgId) {
+      try {
+        const r = await fetch(`https://arca.live/b/aireal/${dbgId}`, {
+          headers: {
+            'User-Agent': ARCA_UA,
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'ko-KR,ko;q=0.9',
+            'Referer': 'https://arca.live/b/aireal',
+          },
+        });
+        const html = await r.text();
+        return corsJson({
+          status: r.status,
+          len: html.length,
+          hasVideoTag: html.includes('<video'),
+          hasNamula: html.includes('namu.la'),
+          looksChallenge: /just a moment|cf-challenge|checking your browser|enable javascript|captcha/i.test(html),
+          server: r.headers.get('server'),
+          cfMitigated: r.headers.get('cf-mitigated'),
+          snippet: html.slice(0, 300),
+        });
+      } catch (e) {
+        return corsJson({ error: 'debug fetch failed', detail: e.message }, 500);
+      }
+    }
+
     // ── 아카 영상 재생: ?arca=<글번호> → 신선한 서명 URL로 302 redirect ──
     // 사이트에서 <video referrerpolicy="no-referrer">로 재생하면 namu.la 핫링크 차단을 우회.
     const arcaId = url.searchParams.get('arca');

@@ -1712,10 +1712,12 @@ function arcaFmtNum(n) {
 }
 
 function buildArcaCard(p) {
-  const thumb = `${ARCA_PROXY}/?arcaThumb=${p.post_id}`;
+  // 썸네일은 로컬 크롤 시 받아둔 GitHub Pages 호스팅 이미지 (아카 CDN은 만료+차단이라 직접 못 씀)
+  const thumb = `thumbs/${p.post_id}.webp`;
   return `<div class="card" id="arcacard-${p.post_id}">
     <div class="thumb" style="cursor:pointer;" onclick="openArcaModal('${p.post_id}')">
-      <img src="${thumb}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'">
+      <img src="${thumb}" alt="" loading="lazy" onerror="this.style.display='none';this.parentElement.querySelector('.arca-thumb-fallback').style.display='flex';">
+      <div class="arca-thumb-fallback" style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;color:var(--muted);font-size:12px;background:var(--bg3);">🎬 아카 영상</div>
       <div class="play-ov"><div class="play-circle" style="background:linear-gradient(135deg,#00d1b2,#0891b2);"><div class="play-tri"></div></div></div>
       <span class="platform-badge" style="background:#00d1b2;color:#fff;">ARCA</span>
     </div>
@@ -1739,13 +1741,20 @@ function openArcaModal(postId) {
   document.getElementById('arcaModalStats').textContent = `👁 ${arcaFmtNum(p.views)} · 👍 ${arcaFmtNum(p.rating)}`;
   document.getElementById('arcaOriginalBtn').href = p.url;
 
-  // 영상: 워커가 재생 시점에 아카에서 신선한 서명 URL을 추출 → 302 redirect.
-  // referrerpolicy=no-referrer로 namu.la 핫링크 차단 우회.
+  // 아카는 데이터센터 IP를 차단해 서버 프록시 재생이 불가.
+  // 방문자 브라우저(집 IP)가 아카에서 직접 재생하도록 새 탭 링크아웃 + 미리보기 썸네일.
   document.getElementById('arcaModalVideo').innerHTML =
-    `<video controls autoplay playsinline referrerpolicy="no-referrer"
-       poster="${ARCA_PROXY}/?arcaThumb=${p.post_id}"
-       src="${ARCA_PROXY}/?arca=${p.post_id}"
-       style="width:100%;border-radius:8px;background:#000;display:block;max-height:70vh;"></video>`;
+    `<a href="${p.url}" target="_blank" rel="noopener"
+        style="position:relative;display:block;border-radius:8px;overflow:hidden;background:#000;text-decoration:none;">
+       <img src="thumbs/${p.post_id}.webp" alt="" onerror="this.style.display='none'"
+         style="width:100%;display:block;max-height:70vh;object-fit:contain;background:#000;">
+       <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:rgba(0,0,0,0.25);">
+         <div style="width:64px;height:64px;border-radius:50%;background:rgba(0,209,178,0.92);display:flex;align-items:center;justify-content:center;">
+           <div style="width:0;height:0;border-left:22px solid #fff;border-top:14px solid transparent;border-bottom:14px solid transparent;margin-left:6px;"></div>
+         </div>
+         <span style="color:#fff;font-size:13px;font-weight:700;background:rgba(0,0,0,0.55);padding:6px 14px;border-radius:20px;">아카라이브에서 영상 재생 ↗</span>
+       </div>
+     </a>`;
 
   const delBtn = document.getElementById('arcaAdmDelBtn');
   if (delBtn) delBtn.style.display = admLoggedIn ? '' : 'none';
