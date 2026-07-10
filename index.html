@@ -1185,10 +1185,25 @@ function toast(msg) {
 }
 
 // ── MLB파크 ──
+// Supabase는 한 번에 최대 1000행만 반환 → 페이지네이션으로 전부 로드
+async function fetchAllApproved(table, orderCol) {
+  let all = [];
+  let from = 0;
+  const page = 1000;
+  while (true) {
+    const { data, error } = await db.from(table).select('*').eq('status','approved')
+      .order(orderCol, { ascending: false, nullsFirst: false })
+      .range(from, from + page - 1);
+    if (error) { console.error(table + ' 로드 오류:', error.message); break; }
+    all = all.concat(data || []);
+    if (!data || data.length < page) break;
+    from += page;
+  }
+  return all;
+}
+
 async function loadMlbPosts() {
-  const { data, error } = await db.from('mlb_posts').select('*').eq('status','approved').order('post_date',{ascending:false, nullsFirst:false});
-  if (error) { console.error('MLB 로드 오류:', error.message); return; }
-  mlbPosts = data||[];
+  mlbPosts = await fetchAllApproved('mlb_posts', 'post_date');
   renderMlbGrid();
   updateMlbStats();
 }
@@ -1566,9 +1581,7 @@ const PERSONA_LABELS = {
 };
 
 async function loadYtPosts() {
-  const { data, error } = await db.from('youtube_posts').select('*').eq('status','approved').order('viral_score',{ascending:false});
-  if (error) { console.error('유튜브 로드 오류:', error.message); return; }
-  ytPosts = data || [];
+  ytPosts = await fetchAllApproved('youtube_posts', 'viral_score');
   if (curPlatform === 'youtube') renderYtGrid();
   const el = document.getElementById('ytTotalCount');
   if (el) el.textContent = ytPosts.length;
@@ -1677,9 +1690,7 @@ async function ytModalDel() {
 
 // ── 아카라이브 ──
 async function loadArcaPosts() {
-  const { data, error } = await db.from('arca_posts').select('*').eq('status','approved').order('post_date',{ascending:false, nullsFirst:false});
-  if (error) { console.error('아카 로드 오류:', error.message); return; }
-  arcaPosts = data || [];
+  arcaPosts = await fetchAllApproved('arca_posts', 'post_date');
   if (curPlatform === 'arca') renderArcaGrid();
   const el = document.getElementById('arcaTotalCount');
   if (el) el.textContent = arcaPosts.length;
