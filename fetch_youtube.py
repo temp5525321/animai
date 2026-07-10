@@ -84,14 +84,25 @@ def calc_viral_score(views, likes, comments):
     return round(min(score, 100), 2)
 
 def get_existing_video_ids():
-    """이미 저장된 영상 ID 조회"""
-    res = requests.get(
-        f'{SUPABASE_URL}/rest/v1/youtube_posts?select=video_id&limit=10000',
-        headers=SUPABASE_HEADERS
-    )
-    if res.status_code != 200:
-        return set()
-    return set(item['video_id'] for item in res.json())
+    """이미 저장된 영상 ID 조회 (Supabase 기본 1000행 제한 → 페이지네이션으로 전부)"""
+    ids = set()
+    offset = 0
+    page = 1000
+    while True:
+        res = requests.get(
+            f'{SUPABASE_URL}/rest/v1/youtube_posts?select=video_id&limit={page}&offset={offset}',
+            headers=SUPABASE_HEADERS
+        )
+        if res.status_code != 200:
+            break
+        batch = res.json()
+        if not batch:
+            break
+        ids.update(item['video_id'] for item in batch)
+        if len(batch) < page:
+            break
+        offset += page
+    return ids
 
 def search_videos(keyword, max_results=50):
     """YouTube API로 영상 검색 (최근 6개월, 조회수 순)"""
@@ -145,17 +156,33 @@ def get_video_stats(video_ids):
     return stats
 
 def insert_videos(videos):
-    """Supabase에 영상 저장"""
-    headers = {**SUPABASE_HEADERS, 'Prefer': 'resolution=merge-duplicates,return=minimal'}
+    """Supabase에 영상 저장.
+    anon key는 UPDATE 권한이 없어 upsert(merge) 불가 → 순수 insert만 가능.
+    배치가 중복 등으로 실패하면 개별 저장으로 폴백(이미 있는 건 건너뜀).
+    """
+    headers = {**SUPABASE_HEADERS, 'Prefer': 'return=minimal'}
     res = requests.post(
         f'{SUPABASE_URL}/rest/v1/youtube_posts',
         headers=headers,
         json=videos
     )
-    print(f'저장 응답 status: {res.status_code}')
-    if res.status_code not in (200, 201):
-        print(f'저장 오류: {res.text[:300]}')
-    return res.status_code in (200, 201)
+    if res.status_code in (200, 201):
+        print(f'저장 응답 status: {res.status_code} (배치 {len(videos)}개)')
+        return True
+
+    # 배치 실패(중복 등) → 개별 저장 폴백
+    print(f'배치 저장 실패({res.status_code}) → 개별 저장 전환: {res.text[:150]}')
+    ok = 0
+    for v in videos:
+        r = requests.post(
+            f'{SUPABASE_URL}/rest/v1/youtube_posts',
+            headers=headers,
+            json=[v]
+        )
+        if r.status_code in (200, 201):
+            ok += 1
+    print(f'개별 저장 완료: {ok}/{len(videos)}개')
+    return ok > 0
 
 def main():
     now_kst = datetime.now(KST).strftime('%Y-%m-%d %H:%M:%S KST')
