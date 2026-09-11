@@ -117,12 +117,15 @@ SEARCH_PLAN = {
             'generated': {'days': 180, 'orders': ['viewCount', 'date'], 'kw': [
                 'AI로 만든 드라마', 'AI generated short film',
                 'made with AI short film', 'AI generated series episode']},
-            'engine':    {'days': 180, 'orders': ['date'], 'kw':
-                [f'{e} short film' for e in SEARCH_ENGINES]},
+            # Veo·Kling short film은 수확이 9개뿐이라 뺐다 (Seedance는 20개)
+            'engine':    {'days': 180, 'orders': ['date'], 'kw': ['Seedance short film']},
             # 공모전·영화제는 시즌 이벤트라 오래된 것도 가치가 있다 → 1년
             'festival':  {'days': 365, 'orders': ['relevance'], 'kw': ['AI Film Festival winner']},
-            # 축소 — 순도 39%지만 「독배」같은 한국 웹드라마를 여기서만 건졌다
-            'broad':     {'days': 180, 'orders': ['viewCount'], 'kw': ['AI 웹드라마', 'AI 단편영화']},
+            # ★한국어 검색어는 키워드당 수확이 영어의 2배다 (31.5개 vs 17개).
+            #   영어 검색어는 한국 영상을 단 한 개도 물어오지 않는다 — 유튜브가 언어로 결과를 가른다.
+            #   「독배」「나를 끝없이 따라오는 죽음에 대하여」를 전부 여기서 건졌다.
+            'broad':     {'days': 180, 'orders': ['viewCount'],
+                          'kw': ['AI 웹드라마', 'AI 단편영화', 'AI 로판', 'AI 숏폼 드라마']},
         },
     },
     'general': {
@@ -130,8 +133,8 @@ SEARCH_PLAN = {
         'lanes': {
             # 광고 자리를 대체한다. 최신 흐름을 보는 게 목적이라 date 중심 · 90일
             'generated': {'days': 90, 'orders': ['date'], 'kw': [
-                'AI로 만든 영상', 'AI generated video',
-                'generative AI video', 'AI cinematic video']},
+                'AI로 만든 영상', 'AI 실사화',   # ★「네이버 시리즈 로제타 AI 공식 실사화」류
+                'AI generated video', 'generative AI video', 'AI cinematic video']},
             'engine':    {'days': 90, 'orders': ['date'], 'kw':
                 [f'{e} AI video' for e in SEARCH_ENGINES]},
         },
@@ -141,9 +144,10 @@ SEARCH_PLAN = {
         'lanes': {
             # ★"확정 광고"가 아니라 "광고성 AI 영상 후보"로만 취급한다.
             #   AI 제품/서비스/앱 광고 계열과 'Runway commercial' 단독은 오폭이 심해 전부 뺐다.
+            # spec ad(5개)·brand film(7개)은 수확이 적어 뺐다
             'generated': {'days': 90, 'orders': ['date'], 'kw': [
-                'AI generated commercial', 'AI generated spec ad',
-                'made with AI commercial', 'AI UGC ad', 'AI brand film']},
+                'AI 광고 영상',
+                'AI generated commercial', 'made with AI commercial', 'AI UGC ad']},
         },
     },
 }
