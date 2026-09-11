@@ -153,6 +153,16 @@ AI_GEN_PHRASES = [
     'ai generated', 'ai-generated', 'generated with ai', 'made with ai', 'made using ai',
     'created with ai', 'created using ai', 'generative ai', 'ai animation', 'ai filmmaking',
     'ai로 만든', 'ai로 제작', 'ai 생성', 'ai 제작', '생성형 ai', 'ai로 만들었',
+    # ★한국 AI 드라마 제작자는 "AI로 만들었다"고 안 쓰고 장르명처럼 쓴다.
+    #   실측: 보류 120개 중 상당수가 이것 때문에 빠졌다
+    #   (「[AI 웹드라마] 내 여자친구는 로봇입니다」, 「AI 로판 회귀물」 등)
+    'ai 드라마', 'ai드라마', 'ai 웹드라마', 'ai웹드라마', 'ai 숏폼', 'ai숏폼',
+    'ai 로판', 'ai로판', 'ai 단편', 'ai단편', 'ai 영화', 'ai영화', 'ai 영상', 'ai영상',
+    'ai 애니', 'ai애니', 'ai 광고', 'ai광고',
+    # ★해시태그는 붙여 쓴다 — #aigenerated, #aifilm.
+    #   실측: 「Hero Dog Saves Pregnant Woman #aigenerated」가 보류로 빠졌다
+    'aigenerated', 'aivideo', 'aifilm', 'aidrama', 'aishortfilm', 'madewithai',
+    'aicinema', 'generativeai', 'aianimation',
 ]
 
 # "AI 제품을 파는 광고" = 오염. v1 실측에서 실제로 걸린 것들
@@ -231,9 +241,14 @@ def discover_engine(desc):
     return raw[:40]
 
 
+_PUNCT = re.compile(r'[^0-9a-z가-힣#]+')
+
 def hits(text, markers):
-    low = text.lower()
-    return [m for m in markers if m in low]
+    """★기호를 공백으로 바꿔 정규화한 뒤 찾는다.
+       「[AI] 드라마 선덕여왕」처럼 괄호가 끼면 'ai 드라마'가 매칭되지 않았다.
+       해시태그(#)는 남겨 둔다 — #aigenerated 류를 따로 잡기 때문."""
+    low = _PUNCT.sub(' ', text.lower())
+    return [m for m in markers if m in low or m in text.lower()]
 
 
 def norm(v, cap):
@@ -378,21 +393,29 @@ def judge(kind, title, desc, tags, engine):
     series = bool(hits(title, SERIES_MARKERS))
 
     ai_signal = min(1.0, 0.55 * bool(gen_hits) + 0.45 * bool(engine) + 0.1 * (len(gen_hits) > 1))
-    pollution = min(1.0, 0.5 * bool(brand_hits) + 0.35 * bool(bcast_hits) + 0.4 * bool(tut_hits))
+
+    # ★오염을 두 갈래로 나눈다 — 성격이 다르기 때문이다.
+    #   ①"AI 제품 광고인가"  → AI로 만들었다고 명시하면 의심을 낮춰도 된다
+    #   ②"튜토리얼·뉴스인가"  → ★AI로 만들었든 아니든 레퍼런스가 아니다. 깎아주면 안 된다
+    #   실측: 「중국 휩쓴 AI 드라마 / JTBC 뉴스룸」이 AI 신호 덕에 감점을 면하고 통과했다
+    pol_ad = 0.5 * bool(brand_hits) + 0.35 * bool(bcast_hits)
     if ai_signal >= 0.5:
-        pollution = max(0.0, pollution - 0.3)   # 제작 방식이 AI라고 명시되면 오염 의심을 낮춘다
+        pol_ad = max(0.0, pol_ad - 0.3)
+    pol_tut = 0.45 * bool(tut_hits)
+    pollution = min(1.0, pol_ad + pol_tut)
 
     ai_gen = ai_signal >= 0.45
     topic_only = (not ai_gen) and (pollution >= 0.35 or bool(brand_hits))
 
+    # ★사유는 AI 제작 판정과 무관하게 남긴다.
+    #   "AI로 만든 뉴스 리포트"는 AI 제작이면서 동시에 레퍼런스로는 쓸모없다.
     reason = None
-    if topic_only:
-        if brand_hits:
-            reason = f'AI 제품 광고로 보임 (AI로 만든 것이 아님): {", ".join(brand_hits[:3])}'
-        elif tut_hits:
-            reason = f'해설·리뷰·튜토리얼로 보임: {", ".join(tut_hits[:3])}'
-        elif bcast_hits:
-            reason = f'일반 방송 광고로 보임: {", ".join(bcast_hits[:3])}'
+    if tut_hits:
+        reason = f'해설·리뷰·뉴스로 보임: {", ".join(tut_hits[:3])}'
+    elif topic_only and brand_hits:
+        reason = f'AI 제품 광고로 보임 (AI로 만든 것이 아님): {", ".join(brand_hits[:3])}'
+    elif topic_only and bcast_hits:
+        reason = f'일반 방송 광고로 보임: {", ".join(bcast_hits[:3])}'
     elif not ai_gen:
         reason = 'AI 제작 신호 없음 (엔진명·생성 어법 모두 미검출)'
 
