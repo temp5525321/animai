@@ -38,8 +38,11 @@ jobs:
 
       - name: 레퍼런스 수집
         env:
+          # ★fetch_refs.py는 YOUTUBE_API_KEY(운영)를 우선 집는다 — fetch_youtube.py(TEST)와 할당량 분리
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
           YOUTUBE_API_KEY_TEST: ${{ secrets.YOUTUBE_API_KEY_TEST }}
+          # 전용 키를 따로 발급하면 이 시크릿만 추가하면 된다 (없으면 무시됨)
+          YOUTUBE_API_KEY_REFS: ${{ secrets.YOUTUBE_API_KEY_REFS }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           # service_role 키가 있으면 조회수 갱신(upsert)까지 동작. 없으면 insert-only.

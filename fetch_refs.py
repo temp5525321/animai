@@ -27,7 +27,14 @@ from datetime import datetime, timezone, timedelta
 
 SCORING_VERSION = 'v2-2026-09-11'
 
-YOUTUBE_API_KEY = os.environ.get('YOUTUBE_API_KEY_TEST') or os.environ.get('YOUTUBE_API_KEY', '')
+# ★키를 fetch_youtube.py와 일부러 다르게 집는다.
+#   두 크롤러가 같은 키를 쓰면 10,000을 나눠 쓰지만,
+#   갈라놓으면 각자 10,000을 통째로 쓴다 (테스트 키는 별도 프로젝트 = 별도 할당량).
+#   fetch_youtube.py → YOUTUBE_API_KEY_TEST 우선
+#   fetch_refs.py    → YOUTUBE_API_KEY(운영) 우선   ← 그동안 놀던 쪽
+_KEY_SOURCE = next((n for n in ('YOUTUBE_API_KEY_REFS', 'YOUTUBE_API_KEY', 'YOUTUBE_API_KEY_TEST')
+                    if os.environ.get(n)), '(없음)')
+YOUTUBE_API_KEY = os.environ.get(_KEY_SOURCE, '')
 SUPABASE_URL = os.environ.get('SUPABASE_URL', '').rstrip('/')
 SUPABASE_SERVICE_KEY = os.environ.get('SUPABASE_SERVICE_KEY', '')
 SUPABASE_KEY = SUPABASE_SERVICE_KEY or os.environ.get('SUPABASE_KEY', '')
@@ -441,6 +448,7 @@ def main():
     est = n_kw * PAGES_PER_KEYWORD * 100 + COMMENT_TOP_N * len(SEARCH_PLAN) + 50
     print(f'설정: 키워드 {n_kw}개 × {PAGES_PER_KEYWORD}페이지 · 최근 {SEARCH_MONTHS}개월 '
           f'· 댓글 상위 {COMMENT_TOP_N} → 예상 약 {est:,}유닛')
+    print(f'API 키: {_KEY_SOURCE}  (fetch_youtube.py는 YOUTUBE_API_KEY_TEST를 쓴다 — 할당량 분리)')
 
     after = (now - timedelta(days=SEARCH_MONTHS * 30)).strftime('%Y-%m-%dT%H:%M:%SZ')
     existing = set() if CAN_UPSERT else get_existing_ids()
