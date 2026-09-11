@@ -42,10 +42,6 @@ CAN_UPSERT = bool(SUPABASE_SERVICE_KEY)
 
 KST = timezone(timedelta(hours=9))
 
-if not all([YOUTUBE_API_KEY, SUPABASE_URL, SUPABASE_KEY]):
-    print('오류: 환경변수가 설정되지 않았습니다.')
-    sys.exit(1)
-
 SUPABASE_HEADERS = {
     'apikey': SUPABASE_KEY,
     'Authorization': f'Bearer {SUPABASE_KEY}',
@@ -71,6 +67,16 @@ PAGES_PER_KEYWORD = int(os.environ.get('REFS_PAGES', 1))     # 키워드당 페�
 COMMENT_TOP_N = int(os.environ.get('REFS_COMMENT_TOP', 0))   # 갈래별 상위 N개만 댓글 분석. 0=끔
 MIN_VIEWS = int(os.environ.get('REFS_MIN_VIEWS', 1000))
 DRY_RUN = os.environ.get('REFS_DRY_RUN', '') == '1'          # 저장하지 않고 결과만 본다
+
+# DRY RUN(=JSON만 남기는 모드)에서는 Supabase가 필요 없다.
+# 로컬에서 크롤링→다운로드만 돌릴 때 유튜브 키 하나로 끝나게 하기 위함.
+if not YOUTUBE_API_KEY:
+    print('오류: YOUTUBE_API_KEY(또는 _TEST/_REFS)가 없습니다.')
+    sys.exit(1)
+if not DRY_RUN and not all([SUPABASE_URL, SUPABASE_KEY]):
+    print('오류: 저장 모드인데 SUPABASE_URL / SUPABASE_KEY 가 없습니다. (REFS_DRY_RUN=1이면 불필요)')
+    sys.exit(1)
+
 
 # ─────────────────────────────────────────────────────────────
 # ★ 엔진 목록 — 유지보수는 여기 한 곳만 하면 된다.
@@ -194,8 +200,11 @@ TUTORIAL_MARKERS = [
 # 광고성 판정용 어휘 (태그 계산에 쓴다)
 AD_WORDS = ['commercial', ' ad ', 'advert', 'brand', 'campaign', 'product', 'launch', 'ugc',
             'spec ad', '광고', '제품', '브랜드', '캠페인', '출시']
-MAKING_WORDS = ['making of', 'behind the scenes', 'workflow', 'pipeline', 'process', 'prompt',
-                '제작 과정', '메이킹', '워크플로우']
+# ⚠️ 'prompt'·'process'는 뺐다 — AI 창작자는 완성작 설명란에도 프롬프트를 적는다.
+#    그것 때문에 멀쩡한 광고가 '메이킹'으로 분류됐다(실측).
+#    메이킹 판정은 ★제목에서만 본다 (아래 judge/태그 계산에서 제목만 넘긴다)
+MAKING_WORDS = ['making of', 'behind the scenes', 'breakdown of', 'how i made',
+                '제작 과정', '메이킹', '워크플로우', '작업 과정']
 
 SERIES_MARKERS = ['ep.', 'ep ', 'episode', 'season', '시즌', '시리즈', '화 ', '1화', '2화', '3화', 'part ']
 
@@ -678,7 +687,7 @@ def main():
         if r['engine']: t.append('엔진명시')
         if r['lane'] == 'festival': t.append('영화제')
         if r['is_tutorial_or_review_likely']: t.append('해설·리뷰')
-        if any(w in hay for w in MAKING_WORDS): t.append('메이킹')
+        if any(w in r['title'].lower() for w in MAKING_WORDS): t.append('메이킹')
         if r['ad_likeness'] >= 0.66: t.append('광고성')
         if any('가' <= c <= '힣' for c in r['title']): t.append('한국어')
         r['auto_tags'] = t
