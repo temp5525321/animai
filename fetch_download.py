@@ -230,6 +230,21 @@ def main():
             json.dump(meta, f, ensure_ascii=False, indent=2)
         manifest.append(meta)
 
+    # ★수집 JSON에 '보냈음'을 되써넣는다.
+    #   그래야 페이지에서 "넘긴 것 / 안 넘긴 것"을 구분해 볼 수 있고,
+    #   Dan이 안 넘어간 것 중에서 직접 골라 추가로 보낼 수 있다.
+    sent = {m['video_id']: m for m in manifest if m['download_status'] == 'done'}
+    for r in rows:
+        if r['video_id'] in sent:
+            r['sent_to_incoming'] = True
+            r['sent_at'] = crawl_date
+            r['sent_filename'] = sent[r['video_id']]['local_filename']
+        else:
+            r.setdefault('sent_to_incoming', False)
+    with open(a.source, 'w', encoding='utf-8') as f:
+        json.dump(rows, f, ensure_ascii=False)
+    print(f'수집 JSON 갱신: 보낸 것 {len(sent)}개 표시')
+
     # 하루치 매니페스트 — GPT 쪽에서 한 번에 훑을 수 있게
     mpath = os.path.join(a.dest, f'_manifest_{crawl_date}.csv')
     cols = ['video_id', 'source_category_guess', 'title', 'channel_name', 'duration_sec',
