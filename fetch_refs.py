@@ -610,7 +610,10 @@ def main():
             print(f'\n──── 오염 판정 {len(polluted)}개 (사유별) ────')
             for r in polluted[:10]:
                 print(f"  {r['title'][:44]} → {r['reject_reason']}")
-        print(f'\n[DRY RUN] 저장하지 않음. 저장 대상이었던 것: {len(rows)}개')
+        # 전체 결과를 파일로 남긴다 — 로그는 상위 15개만 보여 전부 훑을 수 없다
+        with open('refs_dryrun.json', 'w', encoding='utf-8') as f:
+            json.dump(rows, f, ensure_ascii=False)
+        print(f'\n[DRY RUN] 저장하지 않음. 전체 {len(rows)}개를 refs_dryrun.json 으로 남김')
     else:
         print(f'\n저장 완료: {save(rows)}/{len(rows)}개')
     print(f'[{datetime.now(KST):%Y-%m-%d %H:%M:%S} KST] 완료')
