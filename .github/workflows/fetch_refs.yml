@@ -12,8 +12,8 @@ on:
         description: '키워드당 페이지 수 (1=50개·100유닛)'
         default: '1'
       months:
-        description: '검색 기간(개월) — 비용에 영향 없음'
-        default: '6'
+        description: '검색 기간(개월). 0 = 갈래별 기본값(드라마180/일반90/영화제365) 사용'
+        default: '0'
       comment_top:
         description: '갈래별 상위 몇 개에 댓글 분석 (0=끔, 영상당 1유닛)'
         default: '0'
@@ -49,7 +49,7 @@ jobs:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           # 수동 실행이면 입력값을, 스케줄 실행이면 본수집 설정을 쓴다
           REFS_PAGES: ${{ inputs.pages || '2' }}
-          REFS_MONTHS: ${{ inputs.months || '6' }}
+          REFS_MONTHS: ${{ inputs.months || '0' }}
           REFS_COMMENT_TOP: ${{ inputs.comment_top || '100' }}
           REFS_DRY_RUN: ${{ inputs.dry_run || '0' }}
         run: python fetch_refs.py

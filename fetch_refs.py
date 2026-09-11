@@ -544,7 +544,16 @@ def main():
         d = details.get(vid)
         if not d:
             continue
-        if d['views'] < MIN_VIEWS:
+        # 경과일을 먼저 구한다 — 조회수 하한을 나이에 비례시키기 위함
+        try:
+            pub0 = datetime.strptime(base['published_at'], '%Y-%m-%d').replace(tzinfo=timezone.utc)
+            age0 = max(1, (now - pub0).days)
+        except ValueError:
+            age0 = 1
+        # ★하루 50회 페이스를 기준으로, 신작에는 낮은 문턱을 적용한다.
+        #   고정 1,000으로 자르면 order=date가 물어온 신작이 통째로 날아간다(실측 735/1108).
+        floor = min(MIN_VIEWS, 50 * age0)
+        if d['views'] < floor:
             drop_view += 1
             continue
 
@@ -618,10 +627,13 @@ def main():
         # 영상 신호 70% + 채널 신호 30%
         conf = round(min(1.0, r['ai_signal_score'] * 0.7 + r['channel_ai_signal'] * 0.3), 3)
         r['ai_generated_confidence'] = conf
-        # 본인은 안 밝혔지만 채널이 AI 제작 채널이면 구제한다
-        if (not r['is_ai_generated_likely']) and conf >= 0.45 and r['pollution_risk_score'] < 0.35:
+        # 본인은 안 밝혔지만 채널이 AI 제작 채널이면 구제한다.
+        # ⚠️ conf 임계값으로 걸면 산술적으로 불가능하다 — ai_signal=0일 때 conf 최대가 0.3이라
+        #    0.45를 못 넘어 구제가 0개였다(v3 첫 실행 실측). 채널 신호만으로 판단한다.
+        if (not r['is_ai_generated_likely']) and r['channel_ai_signal'] >= 0.5                 and r['pollution_risk_score'] < 0.35:
             r['is_ai_generated_likely'] = True
             r['reject_reason'] = None
+            r['rescued_by_channel'] = True
             rescued += 1
 
         # 작은 채널에서 튄 정도 — 절대 조회수보다 이게 실력에 가깝다
