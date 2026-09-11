@@ -1,5 +1,5 @@
 """
-AI 드라마 / AI 광고 레퍼런스 수집기 (v2)
+AI 드라마 / AI 영상 레퍼런스 수집기 (v3)
 
 v1 실측에서 드러난 문제
   조회수 상위 = 슈퍼볼 pre-roll 광고 (참여율 0.0000) + "AI 제품을 파는 광고"
@@ -25,7 +25,7 @@ import math
 import requests
 from datetime import datetime, timezone, timedelta
 
-SCORING_VERSION = 'v2-2026-09-11'
+SCORING_VERSION = 'v3-2026-09-11'
 
 # ★키를 fetch_youtube.py와 일부러 다르게 집는다.
 #   두 크롤러가 같은 키를 쓰면 10,000을 나눠 쓰지만,
@@ -66,7 +66,7 @@ YT_COMMENTS = 'https://www.googleapis.com/youtube/v3/commentThreads'
 #     실험  1페이지 + 댓글끔 = 약 2,400유닛 → 하루에 세 번 더 돌릴 수 있음
 #     본수집 2페이지 + 댓글100 = 약 5,000유닛
 # ─────────────────────────────────────────────────────────────
-SEARCH_MONTHS = int(os.environ.get('REFS_MONTHS', 6))        # 최신 위주. AI는 반년이면 한 세대 뒤처진다
+SEARCH_MONTHS = int(os.environ.get('REFS_MONTHS', 0))        # 0 = 갈래별 기본값 사용. 값을 주면 전부 덮어쓴다
 PAGES_PER_KEYWORD = int(os.environ.get('REFS_PAGES', 1))     # 키워드당 페이지 (1페이지=50개, 100유닛)
 COMMENT_TOP_N = int(os.environ.get('REFS_COMMENT_TOP', 0))   # 갈래별 상위 N개만 댓글 분석. 0=끔
 MIN_VIEWS = int(os.environ.get('REFS_MIN_VIEWS', 1000))
@@ -92,42 +92,58 @@ ENGINES = {
     'Wan':        ['wan 2.', 'wan2.'],
 }
 # 검색어에 쓸 엔진 (전부 쓰면 예산 초과 → 현재 판에서 결과물이 많은 것만)
-SEARCH_ENGINES = ['Seedance', 'Veo', 'Sora', 'Kling', 'Runway', 'Higgsfield']
+# ⚠️ Runway는 '활주로·패션쇼 런웨이', Sora는 일반 단어와 겹쳐 오폭이 심했다 → 검색어에서 제외.
+#    탐지용 ENGINES에는 그대로 남아 있어 결과물에서는 계속 잡힌다.
+SEARCH_ENGINES = ['Seedance', 'Veo', 'Kling']
 
 # ─────────────────────────────────────────────────────────────
-# 검색어 — 총 24개 (24 × 2페이지 × 100유닛 = 4,800유닛)
-#   generated  "AI로 만든"을 직접 노리는 어법. 엔진이 바뀌어도 안 썩는다
-#   engine     엔진명 + 장르. 정밀도가 가장 높다
-#   festival   큐레이션이 이미 끝난 물건
-#   ※ making(제작과정) 갈래는 뺐다 — v1에서 브이로그·해설이 대량 유입됐다
+# 검색 계획 (v3) — 갈래마다 기간과 정렬을 다르게 둔다
+#
+#   ★order=viewCount는 누적 조회수라 구조적으로 오래된 영상만 올린다.
+#     실측: 경과일 중앙값 99일, 이번 달 업로드는 50건 중 4건뿐.
+#     → order=date를 병행해 최신작을 따로 들여오고, 순위는 내부 점수로 다시 매긴다.
+#     즉 YouTube의 정렬은 "수집용"이고 실제 순위는 우리가 정한다.
+#
+#   ★kind를 drama / general / ad_like 로 재편했다.
+#     광고를 검색 단계에서 맞히려는 시도는 3번 다 실패했다(상위 15개 중 쓸 만한 게 3개).
+#     유튜브에서 commercial은 실제광고·스펙광고·쇼릴·스킷·논평 다섯 가지로 쓰여
+#     검색어로는 분리가 안 된다. → 넓게 모아 두고 저장 단계에서 태그로 가른다.
 # ─────────────────────────────────────────────────────────────
 SEARCH_PLAN = {
     'drama': {
         'label': 'AI 드라마',
         'lanes': {
-            'generated': [
-                'AI로 만든 드라마', 'AI 생성 단편영화',
-                'AI generated short film', 'made with AI short film',
-                'generative AI film', 'AI generated series episode',
-            ],
-            'engine': [f'{e} short film' for e in SEARCH_ENGINES],
-            'festival': ['AI Film Festival winner'],
-            # ★넓은 갈래 — 창작자가 특정 어법을 안 써도 잡기 위함.
-            #   오염이 많이 섞여 들어오지만 judge()가 걸러낸다.
-            'broad': ['AI 드라마', 'AI 웹드라마', 'AI 단편영화', 'AI drama', 'AI short film'],
+            # 잘 작동 중인 갈래라 건드리지 않는다
+            'generated': {'days': 180, 'orders': ['viewCount', 'date'], 'kw': [
+                'AI로 만든 드라마', 'AI generated short film',
+                'made with AI short film', 'AI generated series episode']},
+            'engine':    {'days': 180, 'orders': ['date'], 'kw':
+                [f'{e} short film' for e in SEARCH_ENGINES]},
+            # 공모전·영화제는 시즌 이벤트라 오래된 것도 가치가 있다 → 1년
+            'festival':  {'days': 365, 'orders': ['relevance'], 'kw': ['AI Film Festival winner']},
+            # 축소 — 순도 39%지만 「독배」같은 한국 웹드라마를 여기서만 건졌다
+            'broad':     {'days': 180, 'orders': ['viewCount'], 'kw': ['AI 웹드라마', 'AI 단편영화']},
         },
     },
-    'ad': {
-        'label': 'AI 광고',
+    'general': {
+        'label': 'AI 영상 일반',
         'lanes': {
-            'generated': [
-                'AI로 만든 광고', 'AI 생성 광고',
-                'AI generated commercial', 'AI generated ad',
-                'made with AI commercial', 'AI generated UGC ad',
-            ],
-            'engine': [f'{e} commercial' for e in SEARCH_ENGINES],
-            'festival': ['best AI generated commercial'],
-            'broad': ['AI 광고', 'AI 영상 광고', 'AI commercial', 'AI ad'],
+            # 광고 자리를 대체한다. 최신 흐름을 보는 게 목적이라 date 중심 · 90일
+            'generated': {'days': 90, 'orders': ['date'], 'kw': [
+                'AI로 만든 영상', 'AI generated video',
+                'generative AI video', 'AI cinematic video']},
+            'engine':    {'days': 90, 'orders': ['date'], 'kw':
+                [f'{e} AI video' for e in SEARCH_ENGINES]},
+        },
+    },
+    'ad_like': {
+        'label': '광고성 후보',
+        'lanes': {
+            # ★"확정 광고"가 아니라 "광고성 AI 영상 후보"로만 취급한다.
+            #   AI 제품/서비스/앱 광고 계열과 'Runway commercial' 단독은 오폭이 심해 전부 뺐다.
+            'generated': {'days': 90, 'orders': ['date'], 'kw': [
+                'AI generated commercial', 'AI generated spec ad',
+                'made with AI commercial', 'AI UGC ad', 'AI brand film']},
         },
     },
 }
@@ -148,12 +164,24 @@ AI_PRODUCT_BRANDS = [
 BROADCAST_MARKERS = ['super bowl', 'superbowl', 'big game', 'official commercial', 'tv commercial']
 
 # 제작 해설·리뷰·뉴스 = 레퍼런스가 아님
+# ⚠️ 'vs '는 뺐다 — 「천군｜99명의 한국군 vs 왜군 10만｜AI 단편영화」처럼
+#    진짜 작품이 잘려나갔다. 대신 reaction/comparison 같은 구체어로 좁힌다.
 TUTORIAL_MARKERS = [
     'tutorial', 'how to', 'how i made', 'step by step', 'beginner', 'course', 'masterclass',
-    'review', 'reaction', 'react', 'news', 'explained', 'breakdown', 'compilation',
-    'top 10', 'best of', 'vs ', 'comparison',
+    'review', 'reaction', 'react to', 'news', 'explained', 'breakdown', 'compilation',
+    'comparison', 'best of',
+    # ↓ 실측에서 상위를 먹었던 튜토리얼·랭킹 패턴
+    'top 3', 'top 5', 'top 10', 'free ai tool', 'ai tools', 'in 2 minutes', 'in 5 minutes',
+    'create a ', 'make ai', 'better than 99', 'ranking:', 'try not to', 'the most ',
     '만드는 법', '만드는법', '강의', '강좌', '리뷰', '리액션', '뉴스', '모음', '정리', '비교',
+    '따라하기', '초보', '꿀팁',
 ]
+
+# 광고성 판정용 어휘 (태그 계산에 쓴다)
+AD_WORDS = ['commercial', ' ad ', 'advert', 'brand', 'campaign', 'product', 'launch', 'ugc',
+            'spec ad', '광고', '제품', '브랜드', '캠페인', '출시']
+MAKING_WORDS = ['making of', 'behind the scenes', 'workflow', 'pipeline', 'process', 'prompt',
+                '제작 과정', '메이킹', '워크플로우']
 
 SERIES_MARKERS = ['ep.', 'ep ', 'episode', 'season', '시즌', '시리즈', '화 ', '1화', '2화', '3화', 'part ']
 
@@ -161,8 +189,9 @@ SERIES_MARKERS = ['ep.', 'ep ', 'episode', 'season', '시즌', '시리즈', '화
 COMMENT_POS = {
     'drama': ['다음화', '다음 화', '몰입', '스토리', '세계관', '영화 같', '드라마 같', '퀄리티',
               'next episode', 'story', 'immersive', 'cinematic', 'masterpiece', 'goosebumps'],
-    'ad': ['어디서 사', '링크', '가격', '사고 싶', '써보고 싶', '광고인데',
-           'where to buy', 'link', 'price', 'want this', 'actually watched'],
+    'ad_like': ['어디서 사', '링크', '가격', '사고 싶', '써보고 싶', '광고인데',
+                'where to buy', 'link', 'price', 'want this', 'actually watched'],
+    'general': ['미쳤다', '실화', '퀄리티', '어떻게 만든', 'insane', 'incredible', 'how did you'],
 }
 COMMENT_NEG = ['어색', 'ai 티', '낚시', '시간 아깝', '별로', 'creepy', 'uncanny', 'soulless',
                'clickbait', 'waste of time', 'slop']
@@ -226,10 +255,17 @@ def duration_tier(kind, sec, series):
         if 900 < sec <= 1800:
             return 'secondary'
         return None                            # 30분 초과 → 탈락 (v1의 84분 다큐를 막는다)
-    # 광고 — 세로 쇼츠를 막지 않는다
-    if 10 <= sec <= 120:
+    if kind == 'ad_like':
+        # 광고성 후보 — 세로 쇼츠를 막지 않는다 (AI UGC 광고는 세로가 주류)
+        if 10 <= sec <= 120:
+            return 'primary'
+        if 120 < sec <= 300:
+            return 'secondary'
+        return None
+    # AI 영상 일반 — 넓게 받되 극단만 자른다
+    if 30 <= sec <= 900:
         return 'primary'
-    if 120 < sec <= 300:
+    if 15 <= sec < 30 or 900 < sec <= 1800:
         return 'secondary'
     return None
 
@@ -237,13 +273,15 @@ def duration_tier(kind, sec, series):
 # ─────────────────────────────────────────────────────────────
 # YouTube API
 # ─────────────────────────────────────────────────────────────
-def search_videos(keyword, published_after, pages=PAGES_PER_KEYWORD):
-    """조회수 순. regionCode·relevanceLanguage를 쓰지 않아 국내·해외 전체를 본다."""
+def search_videos(keyword, published_after, order='viewCount', pages=PAGES_PER_KEYWORD):
+    """★order는 '수집용' 정렬일 뿐, 실제 순위는 우리 점수로 다시 매긴다.
+       viewCount = 누적이라 오래된 것에 유리 / date = 최신작 유입.
+       regionCode·relevanceLanguage를 쓰지 않아 국내·해외 전체를 본다."""
     out, token = [], None
     for _ in range(pages):
         params = {
             'part': 'snippet', 'q': keyword, 'type': 'video', 'maxResults': 50,
-            'order': 'viewCount', 'publishedAfter': published_after, 'key': YOUTUBE_API_KEY,
+            'order': order, 'publishedAfter': published_after, 'key': YOUTUBE_API_KEY,
         }
         if token:
             params['pageToken'] = token
@@ -376,9 +414,13 @@ def keyword_match(kind, title, desc, tags, series):
         words = ['drama', 'film', 'story', 'cinematic', 'short', 'episode',
                  '드라마', '영화', '스토리', '단편', '웹드라마']
         bonus = 0.2 if series else 0.0
-    else:
+    elif kind == 'ad_like':
         words = ['ad', 'ads', 'commercial', 'brand', 'product', 'campaign', 'launch', 'ugc',
                  '광고', '제품', '브랜드', '캠페인', '출시']
+        bonus = 0.0
+    else:
+        words = ['ai', 'generated', 'cinematic', 'video', 'film', 'animation',
+                 '영상', '생성', '제작']
         bonus = 0.0
     found = sum(1 for w in words if w in hay)
     return round(min(1.0, found / 3 + bonus), 3)
@@ -448,39 +490,46 @@ def main():
     print(f'[{now:%Y-%m-%d %H:%M:%S} KST] AI 드라마/광고 레퍼런스 수집 v2 ({SCORING_VERSION})')
     print(f'모드: {"upsert" if CAN_UPSERT else "insert-only (service_role 키 없음)"}'
           + (' · DRY RUN' if DRY_RUN else ''))
-    n_kw = sum(len(v) for p in SEARCH_PLAN.values() for v in p['lanes'].values())
-    est = n_kw * PAGES_PER_KEYWORD * 100 + COMMENT_TOP_N * len(SEARCH_PLAN) + 50
-    print(f'설정: 키워드 {n_kw}개 × {PAGES_PER_KEYWORD}페이지 · 최근 {SEARCH_MONTHS}개월 '
+    n_kw = sum(len(l['kw']) for p in SEARCH_PLAN.values() for l in p['lanes'].values())
+    n_call = sum(len(l['kw']) * len(l['orders']) for p in SEARCH_PLAN.values() for l in p['lanes'].values())
+    est = n_call * PAGES_PER_KEYWORD * 100 + COMMENT_TOP_N * len(SEARCH_PLAN) + 50
+    print(f'설정: 키워드 {n_kw}개 → 검색 {n_call}회 × {PAGES_PER_KEYWORD}페이지 '
           f'· 댓글 상위 {COMMENT_TOP_N} → 예상 약 {est:,}유닛')
+    print(f'기간: 갈래별 (드라마 180일 / 일반·광고성 90일 / 영화제 365일)'
+          + (f' ← REFS_MONTHS={SEARCH_MONTHS}로 덮어씀' if SEARCH_MONTHS else ''))
     print(f'API 키: {_KEY_SOURCE}  (fetch_youtube.py는 YOUTUBE_API_KEY_TEST를 쓴다 — 할당량 분리)')
 
-    after = (now - timedelta(days=SEARCH_MONTHS * 30)).strftime('%Y-%m-%dT%H:%M:%SZ')
     existing = set() if CAN_UPSERT else get_existing_ids()
     print(f'기존 저장분: {len(existing)}개')
 
     cand, searches = {}, 0
     for kind, plan in SEARCH_PLAN.items():
         print(f'\n=== {plan["label"]} ===')
-        for lane, kws in plan['lanes'].items():
-            for kw in kws:
-                items = search_videos(kw, after)
-                searches += 1
-                new = 0
-                for it in items:
-                    vid = it.get('id', {}).get('videoId', '')
-                    if not vid or vid in cand or vid in existing:
-                        continue
-                    sn = it.get('snippet', {})
-                    cand[vid] = {
-                        'video_id': vid, 'kind': kind, 'lane': lane, 'search_keyword': kw,
-                        'title': sn.get('title', ''), 'channel': sn.get('channelTitle', ''),
-                        'published_at': sn.get('publishedAt', '')[:10],
-                        'thumb': sn.get('thumbnails', {}).get('medium', {}).get('url', ''),
-                        'url': f'https://www.youtube.com/watch?v={vid}',
-                        'embed_url': f'https://www.youtube.com/embed/{vid}',
-                    }
-                    new += 1
-                print(f'  [{lane:<9}] "{kw}" → {len(items)}개 (신규 {new})')
+        for lane, cfg in plan['lanes'].items():
+            # 기간은 갈래마다 다르다 — 드라마 180일 / 일반·광고성 90일 / 영화제 365일
+            days = SEARCH_MONTHS * 30 if SEARCH_MONTHS else cfg['days']
+            after = (now - timedelta(days=days)).strftime('%Y-%m-%dT%H:%M:%SZ')
+            for kw in cfg['kw']:
+                for order in cfg['orders']:
+                    items = search_videos(kw, after, order)
+                    searches += 1
+                    new = 0
+                    for it in items:
+                        vid = it.get('id', {}).get('videoId', '')
+                        if not vid or vid in cand or vid in existing:
+                            continue
+                        sn = it.get('snippet', {})
+                        cand[vid] = {
+                            'video_id': vid, 'kind': kind, 'lane': lane, 'search_keyword': kw,
+                            'search_order': order,
+                            'title': sn.get('title', ''), 'channel': sn.get('channelTitle', ''),
+                            'published_at': sn.get('publishedAt', '')[:10],
+                            'thumb': sn.get('thumbnails', {}).get('medium', {}).get('url', ''),
+                            'url': f'https://www.youtube.com/watch?v={vid}',
+                            'embed_url': f'https://www.youtube.com/embed/{vid}',
+                        }
+                        new += 1
+                    print(f'  [{lane:<9}|{order:<9}|{days:>3}일] "{kw}" → {len(items)}개 (신규 {new})')
 
     print(f'\n검색 {searches}회 / 신규 후보 {len(cand)}개')
     if not cand:
@@ -547,6 +596,57 @@ def main():
 
     print(f'길이 기준 제외 {drop_dur}개 · 조회수 미달 제외 {drop_view}개 → 후보 {len(rows)}개')
 
+    # ─────────────────────────────────────────────────────────────
+    # ★채널 단위 AI 신호 — 엔진 미탐지 62% 문제의 해법
+    #   같은 채널의 다른 영상에서 엔진이 잡혔다면, 안 밝힌 영상도 AI 제작일 확률이 높다.
+    #   ★이미 수집한 데이터 안에서 집계하므로 추가 API 비용이 0이다.
+    # ─────────────────────────────────────────────────────────────
+    by_ch = {}
+    for r in rows:
+        by_ch.setdefault(r['channel_id'], []).append(r)
+    for items in by_ch.values():
+        n = len(items)
+        n_eng = sum(1 for x in items if x['engine'])
+        n_gen = sum(1 for x in items if x['is_ai_generated_likely'])
+        sig = min(1.0, (n_eng * 0.6 + n_gen * 0.4) / n + (0.25 if n_eng else 0))
+        for x in items:
+            x['channel_ai_signal'] = round(sig, 3)
+            x['channel_video_count'] = n
+
+    rescued = 0
+    for r in rows:
+        # 영상 신호 70% + 채널 신호 30%
+        conf = round(min(1.0, r['ai_signal_score'] * 0.7 + r['channel_ai_signal'] * 0.3), 3)
+        r['ai_generated_confidence'] = conf
+        # 본인은 안 밝혔지만 채널이 AI 제작 채널이면 구제한다
+        if (not r['is_ai_generated_likely']) and conf >= 0.45 and r['pollution_risk_score'] < 0.35:
+            r['is_ai_generated_likely'] = True
+            r['reject_reason'] = None
+            rescued += 1
+
+        # 작은 채널에서 튄 정도 — 절대 조회수보다 이게 실력에 가깝다
+        r['niche_breakout'] = round(norm(r['view_sub_ratio'], 10) * norm(r['views_per_day'], 20000) * 100, 2)
+
+        hay = f"{r['title']} {r['description']}".lower()
+        ad_hits = sum(1 for w in AD_WORDS if w in hay)
+        r['ad_likeness'] = round(min(1.0, ad_hits / 3), 3)
+
+        # ⚠️ 메타데이터로 실제 판정 가능한 것만 붙인다.
+        #   화면을 봐야 아는 것(제품 노출·브랜드 등장·영상 품질)은 태그로 만들지 않는다.
+        t = []
+        if r['is_series_likely']: t.append('시리즈')
+        if r['is_vertical']: t.append('세로')
+        if r['engine']: t.append('엔진명시')
+        if r['lane'] == 'festival': t.append('영화제')
+        if r['is_tutorial_or_review_likely']: t.append('해설·리뷰')
+        if any(w in hay for w in MAKING_WORDS): t.append('메이킹')
+        if r['ad_likeness'] >= 0.66: t.append('광고성')
+        if any('가' <= c <= '힣' for c in r['title']): t.append('한국어')
+        r['auto_tags'] = t
+
+    print(f'채널 단위 신호로 구제: {rescued}개 (본인은 안 밝혔지만 채널이 AI 제작 채널)')
+
+
     # 댓글 분석 — 갈래별 상위 N개에만 (영상당 1유닛이라 전체는 낭비)
     checked = 0
     for kind in SEARCH_PLAN if COMMENT_TOP_N else []:
@@ -564,6 +664,9 @@ def main():
                 r['quality_score'], r['score_breakdown'] = q, bd
     print(f'댓글 분석: {checked}개' + ('' if COMMENT_TOP_N else ' (꺼짐 — REFS_COMMENT_TOP=0)'))
 
+    ages = sorted(r['age_days'] for r in rows) or [0]
+    print(f"\n경과일: 중앙값 {ages[len(ages)//2]}일 · 30일 이내 {sum(1 for a in ages if a<=30)}개 "
+          f"· 90일 이내 {sum(1 for a in ages if a<=90)}개")
     gen = sum(1 for r in rows if r['is_ai_generated_likely'])
     topic = sum(1 for r in rows if r['is_ai_topic_only_likely'])
     print(f'\n★ AI로 만든 것: {gen}개 / AI에 관한 것(오염): {topic}개 / 판정 보류: {len(rows)-gen-topic}개')
@@ -578,16 +681,24 @@ def main():
 
     if DRY_RUN:
         # ★DRY RUN의 목적은 숫자가 아니라 "목록이 쓸 만한가"를 눈으로 보는 것이다.
+        # ★게이트 정렬 — views_per_day만 쓰면 급등한 튜토리얼이 올라온다.
+        #   ①AI 제작 확신 ②오염 낮음 을 먼저 통과시킨 뒤 점수로 정렬한다.
+        def gate(r):
+            return (r['is_ai_generated_likely'],
+                    r['pollution_risk_score'] < 0.35,
+                    r['quality_score'])
         for k, p in SEARCH_PLAN.items():
-            top = sorted([r for r in rows if r['kind'] == k],
-                         key=lambda r: r['quality_score'], reverse=True)[:15]
+            top = sorted([r for r in rows if r['kind'] == k], key=gate, reverse=True)[:15]
             print(f'\n──── {p["label"]} 상위 15 (quality_score 순) ────')
             for i, r in enumerate(top, 1):
                 mark = 'AI제작' if r['is_ai_generated_likely'] else ('오염' if r['is_ai_topic_only_likely'] else '보류')
                 mm, ss = divmod(r['duration_sec'], 60)
-                print(f"{i:>2}. [{r['quality_score']:>5.1f}] {mark:<5} {mm}:{ss:02d} "
-                      f"조회{r['views']:>10,} 구독대비{r['view_sub_ratio']:>7.2f} "
-                      f"좋아요율{r['like_rate']:.4f} {(r['engine'] or '-'):<10} | {r['title'][:44]}")
+                print(f"{i:>2}. [{r['quality_score']:>5.1f}] {mark:<5} 확신{r['ai_generated_confidence']:.2f} "
+                      f"{mm}:{ss:02d} 조회{r['views']:>9,} 구독대비{r['view_sub_ratio']:>6.1f} "
+                      f"돌풍{r['niche_breakout']:>5.1f} {r['age_days']:>3}일 "
+                      f"{(r['engine'] or '-'):<10} | {r['title'][:40]}")
+                if r['auto_tags']:
+                    print(f"      태그 {' · '.join(r['auto_tags'])}")
                 print(f"      {r['url']}  | 채널 {r['channel'][:22]} | 검색어 \"{r['search_keyword']}\"")
         # ★갈래별 성적 — 넓은 키워드가 실제로 값을 하는지 비교하기 위함
         print('\n──── 갈래별 성적 ────')
