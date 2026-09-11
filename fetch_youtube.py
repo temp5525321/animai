@@ -53,12 +53,6 @@ PERSONAS = {
         'min_views': 10000,
         'ai_filter': False,
     },
-    'lopan': {
-        'label': 'AI 로판',
-        'keywords': ['AI 로판', 'AI 로맨스판타지', '인공지능 로판', 'AI 웹툰'],
-        'min_views': 10000,
-        'ai_filter': False,
-    },
 }
 
 # AI 필터링 키워드 (ai_filter: True인 페르소나에만 적용)

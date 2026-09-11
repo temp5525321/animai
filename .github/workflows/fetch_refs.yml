@@ -1,0 +1,33 @@
+name: AI 드라마·광고 레퍼런스 수집
+
+on:
+  schedule:
+    # KST 오후 6시 (UTC 9시). 할당량 리셋(KST 오후 5시) 직후라 하루치를 온전히 쓴다.
+    - cron: '0 9 * * *'
+  workflow_dispatch:        # 수동 실행 버튼
+
+jobs:
+  fetch-refs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Python 설정
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 패키지 설치
+        run: pip install requests
+
+      - name: 레퍼런스 수집
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          YOUTUBE_API_KEY_TEST: ${{ secrets.YOUTUBE_API_KEY_TEST }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          # service_role 키가 등록되어 있으면 조회수 갱신(upsert)까지 동작한다.
+          # 없으면 자동으로 insert-only로 떨어진다.
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python fetch_refs.py
