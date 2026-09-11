@@ -112,6 +112,9 @@ SEARCH_PLAN = {
             ],
             'engine': [f'{e} short film' for e in SEARCH_ENGINES],
             'festival': ['AI Film Festival winner'],
+            # ★넓은 갈래 — 창작자가 특정 어법을 안 써도 잡기 위함.
+            #   오염이 많이 섞여 들어오지만 judge()가 걸러낸다.
+            'broad': ['AI 드라마', 'AI 웹드라마', 'AI 단편영화', 'AI drama', 'AI short film'],
         },
     },
     'ad': {
@@ -124,6 +127,7 @@ SEARCH_PLAN = {
             ],
             'engine': [f'{e} commercial' for e in SEARCH_ENGINES],
             'festival': ['best AI generated commercial'],
+            'broad': ['AI 광고', 'AI 영상 광고', 'AI commercial', 'AI ad'],
         },
     },
 }
@@ -585,6 +589,22 @@ def main():
                       f"조회{r['views']:>10,} 구독대비{r['view_sub_ratio']:>7.2f} "
                       f"좋아요율{r['like_rate']:.4f} {(r['engine'] or '-'):<10} | {r['title'][:44]}")
                 print(f"      {r['url']}  | 채널 {r['channel'][:22]} | 검색어 \"{r['search_keyword']}\"")
+        # ★갈래별 성적 — 넓은 키워드가 실제로 값을 하는지 비교하기 위함
+        print('\n──── 갈래별 성적 ────')
+        print(f"{'갈래':<12}{'후보':>6}{'AI제작':>8}{'오염':>6}{'순도':>7}   상위30 진입")
+        for k, p in SEARCH_PLAN.items():
+            kr = sorted([r for r in rows if r['kind'] == k],
+                        key=lambda r: r['quality_score'], reverse=True)
+            top30 = {r['video_id'] for r in kr[:30]}
+            print(f'  [{p["label"]}]')
+            for lane in p['lanes']:
+                lr = [r for r in kr if r['lane'] == lane]
+                if not lr:
+                    continue
+                g = sum(1 for r in lr if r['is_ai_generated_likely'])
+                po = sum(1 for r in lr if r['is_ai_topic_only_likely'])
+                intop = sum(1 for r in lr if r['video_id'] in top30)
+                print(f"  {lane:<12}{len(lr):>6}{g:>8}{po:>6}{g/max(len(lr),1)*100:>6.0f}%{intop:>10}개")
         polluted = [r for r in rows if r['is_ai_topic_only_likely']]
         if polluted:
             print(f'\n──── 오염 판정 {len(polluted)}개 (사유별) ────')
