@@ -1,29 +1,34 @@
 """
-AI 드라마 / AI 광고 레퍼런스 수집기
+AI 드라마 / AI 광고 레퍼런스 수집기 (v2)
 
-목적이 기존 fetch_youtube.py와 다릅니다.
-  fetch_youtube.py  주제별 큐레이션 (사이트에 보여주는 용도)
-  fetch_refs.py     ★제작 레퍼런스 수집 (스토리·기획·연출 분석 용도)
+v1 실측에서 드러난 문제
+  조회수 상위 = 슈퍼볼 pre-roll 광고 (참여율 0.0000) + "AI 제품을 파는 광고"
+  드라마 1위 = 84분짜리 AI 다큐멘터리 (AI로 만든 게 아님)
+  → "AI에 관한 영상"과 "AI로 만든 영상"이 섞였다. 이게 핵심 오염원.
 
-설계 원칙
-  1) 합산 점수를 만들지 않는다.
-     조회수 / 참여율 / 속도 / 길이를 원시값 그대로 저장하고, 고르는 축은 사용자가 정한다.
-     하나로 합치면 왜 위에 있는지 알 수 없게 되고, 축을 바꿀 때마다 재크롤링해야 한다.
-  2) 엔진 이름을 검색어에 박지 않는다.
-     엔진은 몇 달마다 갈린다. 박아두면 리스트가 썩고, 모르는 엔진은 영영 못 찾는다.
-     → 주제어로 넓게 찾고, 찾은 영상의 설명에서 엔진명을 역으로 추출한다.
-  3) 국내/해외 전체.
-     regionCode·relevanceLanguage를 쓰지 않는다. 좋은 레퍼런스는 해외가 많다.
+v2 설계
+  1) is_ai_generated_likely / is_ai_topic_only_likely 를 분리 기록.
+     오염 후보를 버리지 않고 "왜 아닌지"를 남긴다 → 기준이 바뀌어도 재수집 불필요.
+  2) 합산 점수를 확정값처럼 박지 않는다.
+     원시·파생 지표를 전부 저장하고 quality_score는 그 위에서 계산한 파생물일 뿐.
+     scoring_version + score_breakdown 이 있어 가중치만 바꿔 재계산할 수 있다.
+  3) view_sub_ratio(조회수/구독자)로 대형 채널 독식을 막는다.
+  4) 댓글 분석은 전체가 아니라 1차 정렬 상위에만 (영상당 1유닛이라 전체는 낭비).
+  5) 쇼츠 기준을 드라마와 광고에 다르게 적용한다.
+     드라마 = 60초 초과 우선 / 광고 = 세로 쇼츠 적극 허용 (AI UGC 광고는 세로가 주류)
 """
 import os
 import re
 import sys
+import json
+import math
 import requests
 from datetime import datetime, timezone, timedelta
 
+SCORING_VERSION = 'v2-2026-09-11'
+
 YOUTUBE_API_KEY = os.environ.get('YOUTUBE_API_KEY_TEST') or os.environ.get('YOUTUBE_API_KEY', '')
 SUPABASE_URL = os.environ.get('SUPABASE_URL', '').rstrip('/')
-# service_role 키가 있으면 upsert(조회수 갱신)까지 가능, 없으면 anon으로 insert-only 폴백
 SUPABASE_SERVICE_KEY = os.environ.get('SUPABASE_SERVICE_KEY', '')
 SUPABASE_KEY = SUPABASE_SERVICE_KEY or os.environ.get('SUPABASE_KEY', '')
 CAN_UPSERT = bool(SUPABASE_SERVICE_KEY)
@@ -31,7 +36,7 @@ CAN_UPSERT = bool(SUPABASE_SERVICE_KEY)
 KST = timezone(timedelta(hours=9))
 
 if not all([YOUTUBE_API_KEY, SUPABASE_URL, SUPABASE_KEY]):
-    print('오류: 환경변수가 설정되지 않았습니다. (YOUTUBE_API_KEY / SUPABASE_URL / SUPABASE_KEY)')
+    print('오류: 환경변수가 설정되지 않았습니다.')
     sys.exit(1)
 
 SUPABASE_HEADERS = {
@@ -41,86 +46,117 @@ SUPABASE_HEADERS = {
     'Prefer': 'return=minimal',
 }
 
-YT_SEARCH_URL = 'https://www.googleapis.com/youtube/v3/search'
-YT_VIDEOS_URL = 'https://www.googleapis.com/youtube/v3/videos'
+YT_SEARCH = 'https://www.googleapis.com/youtube/v3/search'
+YT_VIDEOS = 'https://www.googleapis.com/youtube/v3/videos'
+YT_CHANNELS = 'https://www.googleapis.com/youtube/v3/channels'
+YT_COMMENTS = 'https://www.googleapis.com/youtube/v3/commentThreads'
 
-SEARCH_MONTHS = 12       # 검색 대상 기간(개월). AI는 기술이 빨리 갈려 너무 길면 구식이 섞인다
-MIN_VIEWS = 10000        # 하한. order=viewCount라 대개 걸리지 않지만 잡음 제거용
+SEARCH_MONTHS = 12
+PAGES_PER_KEYWORD = 2      # 키워드당 페이지 수 (1페이지=50개, 100유닛)
+COMMENT_TOP_N = 100        # 갈래별 상위 몇 개에만 댓글 분석할지
+MIN_VIEWS = 1000
 
 # ─────────────────────────────────────────────────────────────
-# 검색어 — 세 갈래
-#   topic     완성본을 넓게 건진다
-#   festival  ★큐레이션이 이미 끝난 물건. 품질이 보장된다
-#   making    ★기획·연출 분석이 목적이면 완성본보다 값지다 (왜 그렇게 했는지가 설명된다)
+# ★ 엔진 목록 — 유지보수는 여기 한 곳만 하면 된다.
+#   검색어에도 쓰이고 탐지에도 쓰인다. 새 엔진이 나오면 여기에만 추가.
+#   단, 여기 없는 엔진도 discover_engine()이 설명란에서 자동으로 잡아낸다.
+# ─────────────────────────────────────────────────────────────
+ENGINES = {
+    'Seedance':   ['seedance', '시댄스', '即梦'],
+    'Veo':        ['veo 3', 'veo3', 'veo 2', 'google veo'],
+    'Sora':       ['sora'],
+    'Kling':      ['kling', '클링', '可灵'],
+    'Runway':     ['runway', 'gen-3', 'gen-4'],
+    'Higgsfield': ['higgsfield'],
+    'Midjourney': ['midjourney'],
+    'Hailuo':     ['hailuo', 'minimax'],
+    'Grok':       ['grok imagine'],
+    'Pika':       ['pika labs'],
+    'Luma':       ['dream machine', 'luma ai'],
+    'Wan':        ['wan 2.', 'wan2.'],
+}
+# 검색어에 쓸 엔진 (전부 쓰면 예산 초과 → 현재 판에서 결과물이 많은 것만)
+SEARCH_ENGINES = ['Seedance', 'Veo', 'Sora', 'Kling', 'Runway', 'Higgsfield']
+
+# ─────────────────────────────────────────────────────────────
+# 검색어 — 총 24개 (24 × 2페이지 × 100유닛 = 4,800유닛)
+#   generated  "AI로 만든"을 직접 노리는 어법. 엔진이 바뀌어도 안 썩는다
+#   engine     엔진명 + 장르. 정밀도가 가장 높다
+#   festival   큐레이션이 이미 끝난 물건
+#   ※ making(제작과정) 갈래는 뺐다 — v1에서 브이로그·해설이 대량 유입됐다
 # ─────────────────────────────────────────────────────────────
 SEARCH_PLAN = {
     'drama': {
         'label': 'AI 드라마',
         'lanes': {
-            'topic': [
-                'AI short film', 'AI 단편영화', 'AI generated film',
-                'AI drama series', 'AI 드라마', 'AI cinematic short',
+            'generated': [
+                'AI로 만든 드라마', 'AI 생성 단편영화',
+                'AI generated short film', 'made with AI short film',
+                'generative AI film', 'AI generated series episode',
             ],
-            'festival': [
-                'AI Film Festival winner', 'AI film festival official selection', 'AI 영화제',
-            ],
-            'making': [
-                'AI short film breakdown', 'AI film behind the scenes', 'AI 영상 제작 과정',
-            ],
+            'engine': [f'{e} short film' for e in SEARCH_ENGINES],
+            'festival': ['AI Film Festival winner'],
         },
     },
     'ad': {
         'label': 'AI 광고',
         'lanes': {
-            'topic': [
-                'AI commercial', 'AI 광고', 'AI generated commercial',
-                'AI advertisement', 'AI brand film',
+            'generated': [
+                'AI로 만든 광고', 'AI 생성 광고',
+                'AI generated commercial', 'AI generated ad',
+                'made with AI commercial', 'AI generated UGC ad',
             ],
-            'festival': [
-                'AI commercial award', 'AI ad showcase', 'best AI commercial',
-            ],
-            'making': [
-                'AI commercial breakdown', 'AI ad behind the scenes', 'AI 광고 제작 과정',
-            ],
+            'engine': [f'{e} commercial' for e in SEARCH_ENGINES],
+            'festival': ['best AI generated commercial'],
         },
     },
 }
 
-# 알려진 엔진 — 씨앗 목록일 뿐이다. 여기 없는 엔진은 아래 discover_engine()이 잡는다.
-KNOWN_ENGINES = [
-    ('Seedance', ['seedance', '시댄스', '即梦']),
-    ('Veo', ['veo 3', 'veo3', 'google veo', ' veo ']),
-    ('Sora', ['sora']),
-    ('Kling', ['kling', '클링', '可灵']),
-    ('Runway', ['runway', 'gen-3', 'gen-4', 'gen3', 'gen4']),
-    ('Midjourney', ['midjourney', 'mj v']),
-    ('Grok Imagine', ['grok imagine', 'grok']),
-    ('Higgsfield', ['higgsfield']),
-    ('Hailuo', ['hailuo', 'minimax', '해일루오']),
-    ('Vidu', ['vidu']),
-    ('Pika', ['pika labs', 'pika']),
-    ('Luma', ['luma dream', 'dream machine', 'luma ai']),
-    ('Wan', ['wan 2.', 'wan2.']),
-    ('Nano Banana', ['nano banana']),
+# "AI로 만들었다"는 신호
+AI_GEN_PHRASES = [
+    'ai generated', 'ai-generated', 'generated with ai', 'made with ai', 'made using ai',
+    'created with ai', 'created using ai', 'generative ai', 'ai animation', 'ai filmmaking',
+    'ai로 만든', 'ai로 제작', 'ai 생성', 'ai 제작', '생성형 ai', 'ai로 만들었',
 ]
 
-# "made with ___" 류 — 내가 모르는 엔진을 잡기 위한 장치
-DISCOVER_PAT = re.compile(
-    r'(?:made\s+(?:with|in|using)|created\s+(?:with|in|using)|generated\s+(?:with|in|by)'
-    r'|powered\s+by|animated\s+with|rendered\s+(?:with|in)|사용\s*툴|제작\s*툴|으로\s*제작)'
-    r'[:\s]*([A-Za-z0-9][A-Za-z0-9.\-\s]{1,24})',
-    re.IGNORECASE,
-)
+# "AI 제품을 파는 광고" = 오염. v1 실측에서 실제로 걸린 것들
+AI_PRODUCT_BRANDS = [
+    'alexa', 'chatgpt', 'copilot', 'gemini', 'base44', 'albert',
+    'perplexity', 'claude', 'notion ai', 'salesforce', 'ai assistant',
+    'ai financial', 'ai agent', 'siri',
+]
+BROADCAST_MARKERS = ['super bowl', 'superbowl', 'big game', 'official commercial', 'tv commercial']
+
+# 제작 해설·리뷰·뉴스 = 레퍼런스가 아님
+TUTORIAL_MARKERS = [
+    'tutorial', 'how to', 'how i made', 'step by step', 'beginner', 'course', 'masterclass',
+    'review', 'reaction', 'react', 'news', 'explained', 'breakdown', 'compilation',
+    'top 10', 'best of', 'vs ', 'comparison',
+    '만드는 법', '만드는법', '강의', '강좌', '리뷰', '리액션', '뉴스', '모음', '정리', '비교',
+]
+
+SERIES_MARKERS = ['ep.', 'ep ', 'episode', 'season', '시즌', '시리즈', '화 ', '1화', '2화', '3화', 'part ']
+
+# 댓글 반응 — 갈래별로 다른 말이 나온다
+COMMENT_POS = {
+    'drama': ['다음화', '다음 화', '몰입', '스토리', '세계관', '영화 같', '드라마 같', '퀄리티',
+              'next episode', 'story', 'immersive', 'cinematic', 'masterpiece', 'goosebumps'],
+    'ad': ['어디서 사', '링크', '가격', '사고 싶', '써보고 싶', '광고인데',
+           'where to buy', 'link', 'price', 'want this', 'actually watched'],
+}
+COMMENT_NEG = ['어색', 'ai 티', '낚시', '시간 아깝', '별로', 'creepy', 'uncanny', 'soulless',
+               'clickbait', 'waste of time', 'slop']
 
 ISO_DUR = re.compile(r'P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?')
 EMBED_WH = re.compile(r'width="(\d+)".*?height="(\d+)"', re.DOTALL)
+DISCOVER_PAT = re.compile(
+    r'(?:made\s+with|created\s+with|generated\s+with|powered\s+by|사용\s*툴|제작\s*툴)'
+    r'[:\s]*([A-Za-z][A-Za-z0-9.\-]{1,18}(?:\s+[A-Z0-9][A-Za-z0-9.\-]{0,12})?)',
+)
 
 
 def parse_duration(iso):
-    """ISO8601 (PT1H2M3S) → 초"""
-    if not iso:
-        return 0
-    m = ISO_DUR.match(iso)
+    m = ISO_DUR.match(iso or '')
     if not m:
         return 0
     d, h, mi, s = (int(x) if x else 0 for x in m.groups())
@@ -128,272 +164,395 @@ def parse_duration(iso):
 
 
 def detect_engine(text):
-    """알려진 엔진과 매칭. 없으면 None."""
     low = f' {text.lower()} '
-    for name, aliases in KNOWN_ENGINES:
-        for a in aliases:
-            if a in low:
-                return name
+    for name, aliases in ENGINES.items():
+        if any(a in low for a in aliases):
+            return name
     return None
 
 
-def discover_engine(text):
-    """목록에 없는 엔진을 설명란 문구에서 통째로 캡처한다."""
-    m = DISCOVER_PAT.search(text or '')
+def discover_engine(desc):
+    """목록에 없는 엔진을 설명란에서 잡는다."""
+    m = DISCOVER_PAT.search(desc or '')
     if not m:
         return None
-    raw = m.group(1).strip(' .-\n\t')
-    # 너무 일반적인 단어가 잡히면 버린다
-    if len(raw) < 2 or raw.lower() in ('ai', 'the', 'a', 'my', 'this', 'it'):
+    raw = m.group(1).strip(' .-\n\t,')
+    if len(raw) < 3 or raw.lower() in ('ai', 'the', 'my', 'this', 'love', 'care'):
         return None
-    return raw[:60]
+    return raw[:40]
 
 
-def search_videos(keyword, published_after, max_results=50):
-    """조회수 순 검색. ★regionCode / relevanceLanguage를 쓰지 않는다 = 국내·해외 전체."""
-    params = {
-        'part': 'snippet',
-        'q': keyword,
-        'type': 'video',
-        'maxResults': max_results,
-        'order': 'viewCount',
-        'publishedAfter': published_after,
-        'key': YOUTUBE_API_KEY,
-    }
-    res = requests.get(YT_SEARCH_URL, params=params, timeout=30)
-    if res.status_code != 200:
-        print(f'    검색 오류({res.status_code}): {res.text[:160]}')
-        return []
-    return res.json().get('items', [])
+def hits(text, markers):
+    low = text.lower()
+    return [m for m in markers if m in low]
 
 
-def get_video_details(video_ids):
-    """상세 조회. part를 늘려도 비용은 1유닛 그대로라 필요한 걸 다 가져온다."""
-    if not video_ids:
-        return {}
-    params = {
-        'part': 'statistics,snippet,status,contentDetails,player',
-        'id': ','.join(video_ids),
-        'maxHeight': 720,          # 화면비를 알아내기 위해 지정 (세로 영상 판별용)
-        'key': YOUTUBE_API_KEY,
-    }
-    res = requests.get(YT_VIDEOS_URL, params=params, timeout=30)
-    if res.status_code != 200:
-        print(f'    상세 조회 오류({res.status_code}): {res.text[:160]}')
-        return {}
+def norm(v, cap):
+    """0..1로 정규화"""
+    if cap <= 0:
+        return 0.0
+    return max(0.0, min(float(v) / cap, 1.0))
 
-    out = {}
-    for item in res.json().get('items', []):
-        st = item.get('statistics', {})
-        sn = item.get('snippet', {})
-        cd = item.get('contentDetails', {})
-        pl = item.get('player', {})
 
-        dur = parse_duration(cd.get('duration', ''))
+def duration_tier(kind, sec, series):
+    """길이 기준 우선순위. 드라마와 광고에 다른 기준을 쓴다."""
+    if kind == 'drama':
+        if 60 < sec <= 900:
+            return 'primary'
+        if 30 <= sec <= 60:
+            return 'secondary'
+        if sec < 30 and not series:
+            return None                       # 30초 미만 + 시리즈 신호 없음 → 탈락
+        if 900 < sec <= 1800:
+            return 'secondary'
+        return None                            # 30분 초과 → 탈락 (v1의 84분 다큐를 막는다)
+    # 광고 — 세로 쇼츠를 막지 않는다
+    if 10 <= sec <= 120:
+        return 'primary'
+    if 120 < sec <= 300:
+        return 'secondary'
+    return None
 
-        # 화면비 → 세로면 쇼츠 계열
-        vertical = False
-        wh = EMBED_WH.search(pl.get('embedHtml', '') or '')
-        if wh:
-            w, h = int(wh.group(1)), int(wh.group(2))
-            vertical = h > w
 
-        out[item['id']] = {
-            'views': int(st.get('viewCount', 0) or 0),
-            'likes': int(st.get('likeCount', 0) or 0),
-            'comments': int(st.get('commentCount', 0) or 0),
-            'description': sn.get('description', ''),
-            'tags': sn.get('tags', []) or [],
-            'channel_id': sn.get('channelId', ''),
-            'duration_sec': dur,
-            'is_vertical': vertical,
-            'embeddable': item.get('status', {}).get('embeddable', True),
+# ─────────────────────────────────────────────────────────────
+# YouTube API
+# ─────────────────────────────────────────────────────────────
+def search_videos(keyword, published_after, pages=PAGES_PER_KEYWORD):
+    """조회수 순. regionCode·relevanceLanguage를 쓰지 않아 국내·해외 전체를 본다."""
+    out, token = [], None
+    for _ in range(pages):
+        params = {
+            'part': 'snippet', 'q': keyword, 'type': 'video', 'maxResults': 50,
+            'order': 'viewCount', 'publishedAfter': published_after, 'key': YOUTUBE_API_KEY,
         }
+        if token:
+            params['pageToken'] = token
+        r = requests.get(YT_SEARCH, params=params, timeout=30)
+        if r.status_code != 200:
+            print(f'    검색 오류({r.status_code}): {r.text[:140]}')
+            break
+        data = r.json()
+        out.extend(data.get('items', []))
+        token = data.get('nextPageToken')
+        if not token:
+            break
     return out
 
 
-def is_shorts(title, description, tags, duration_sec, vertical):
-    """쇼츠 판정.
+def get_video_details(ids):
+    out = {}
+    for i in range(0, len(ids), 50):
+        params = {
+            'part': 'statistics,snippet,status,contentDetails,player',
+            'id': ','.join(ids[i:i + 50]), 'maxHeight': 720, 'key': YOUTUBE_API_KEY,
+        }
+        r = requests.get(YT_VIDEOS, params=params, timeout=30)
+        if r.status_code != 200:
+            print(f'    상세 오류({r.status_code}): {r.text[:140]}')
+            continue
+        for it in r.json().get('items', []):
+            st, sn, cd, pl = (it.get('statistics', {}), it.get('snippet', {}),
+                              it.get('contentDetails', {}), it.get('player', {}))
+            vertical = False
+            wh = EMBED_WH.search(pl.get('embedHtml', '') or '')
+            if wh:
+                vertical = int(wh.group(2)) > int(wh.group(1))
+            out[it['id']] = {
+                'views': int(st.get('viewCount', 0) or 0),
+                'likes': int(st.get('likeCount', 0) or 0),
+                'comments': int(st.get('commentCount', 0) or 0),
+                'description': sn.get('description', ''),
+                'tags': sn.get('tags', []) or [],
+                'channel_id': sn.get('channelId', ''),
+                'duration_sec': parse_duration(cd.get('duration', '')),
+                'is_vertical': vertical,
+                'embeddable': it.get('status', {}).get('embeddable', True),
+            }
+    return out
 
-    ★길이만으로 자르면 안 된다 — AI 광고는 15~60초라 쇼츠와 길이가 겹친다.
-      구분되는 건 길이가 아니라 화면비다.
-    """
-    if '#shorts' in (title or '').lower() or '#shorts' in (description or '').lower():
-        return True
-    if any('short' == (t or '').lower() or 'shorts' == (t or '').lower() for t in tags):
-        return True
-    return bool(duration_sec and duration_sec <= 60 and vertical)
+
+def get_channel_subs(channel_ids):
+    """★조회수/구독자 비율용. 50개당 1유닛으로 거의 공짜."""
+    subs = {}
+    ids = [c for c in set(channel_ids) if c]
+    for i in range(0, len(ids), 50):
+        params = {'part': 'statistics', 'id': ','.join(ids[i:i + 50]), 'key': YOUTUBE_API_KEY}
+        r = requests.get(YT_CHANNELS, params=params, timeout=30)
+        if r.status_code != 200:
+            continue
+        for it in r.json().get('items', []):
+            subs[it['id']] = int(it.get('statistics', {}).get('subscriberCount', 0) or 0)
+    return subs
 
 
-def keep_video(kind, duration_sec, vertical, shorts):
-    """카테고리별 채택 기준.
+def analyse_comments(video_id, kind):
+    """상위 후보에만 실행. 댓글이 꺼져 있어도 후보를 버리지 않는다."""
+    params = {'part': 'snippet', 'videoId': video_id, 'maxResults': 50,
+              'order': 'relevance', 'textFormat': 'plainText', 'key': YOUTUBE_API_KEY}
+    r = requests.get(YT_COMMENTS, params=params, timeout=30)
+    if r.status_code == 403:
+        return 'disabled', 0.0
+    if r.status_code != 200:
+        return 'failed', 0.0
+    pos = neg = 0
+    for it in r.json().get('items', []):
+        txt = it['snippet']['topLevelComment']['snippet'].get('textDisplay', '').lower()
+        if any(w in txt for w in COMMENT_POS.get(kind, [])):
+            pos += 1
+        if any(w in txt for w in COMMENT_NEG):
+            neg += 1
+    total = pos + neg
+    if total == 0:
+        return 'ok', 0.0
+    return 'ok', round((pos - neg) / total, 4)
 
-    drama  60초 초과만  → 쇼츠가 자연히 빠진다
-    ad     길이 제한 없음. 세로(쇼츠)만 제외 → 잘 만든 15초 가로 광고를 놓치지 않는다
-    """
-    if shorts:
-        return False
+
+# ─────────────────────────────────────────────────────────────
+# 판정 & 점수
+# ─────────────────────────────────────────────────────────────
+def judge(kind, title, desc, tags, engine):
+    """AI로 만든 것인가, AI에 관한 것인가."""
+    hay = f'{title} {desc} {" ".join(tags)}'
+    gen_hits = hits(hay, AI_GEN_PHRASES)
+    brand_hits = hits(hay, AI_PRODUCT_BRANDS)
+    bcast_hits = hits(hay, BROADCAST_MARKERS)
+    tut_hits = hits(title, TUTORIAL_MARKERS)
+    series = bool(hits(title, SERIES_MARKERS))
+
+    ai_signal = min(1.0, 0.55 * bool(gen_hits) + 0.45 * bool(engine) + 0.1 * (len(gen_hits) > 1))
+    pollution = min(1.0, 0.5 * bool(brand_hits) + 0.35 * bool(bcast_hits) + 0.4 * bool(tut_hits))
+    if ai_signal >= 0.5:
+        pollution = max(0.0, pollution - 0.3)   # 제작 방식이 AI라고 명시되면 오염 의심을 낮춘다
+
+    ai_gen = ai_signal >= 0.45
+    topic_only = (not ai_gen) and (pollution >= 0.35 or bool(brand_hits))
+
+    reason = None
+    if topic_only:
+        if brand_hits:
+            reason = f'AI 제품 광고로 보임 (AI로 만든 것이 아님): {", ".join(brand_hits[:3])}'
+        elif tut_hits:
+            reason = f'해설·리뷰·튜토리얼로 보임: {", ".join(tut_hits[:3])}'
+        elif bcast_hits:
+            reason = f'일반 방송 광고로 보임: {", ".join(bcast_hits[:3])}'
+    elif not ai_gen:
+        reason = 'AI 제작 신호 없음 (엔진명·생성 어법 모두 미검출)'
+
+    return {
+        'ai_signal': round(ai_signal, 3),
+        'pollution': round(pollution, 3),
+        'is_ai_generated_likely': ai_gen,
+        'is_ai_topic_only_likely': topic_only,
+        'is_tutorial_or_review_likely': bool(tut_hits),
+        'is_series_likely': series,
+        'reject_reason': reason,
+    }
+
+
+def keyword_match(kind, title, desc, tags, series):
+    """제목·설명·태그가 그 갈래답게 생겼는지."""
+    hay = f'{title} {desc} {" ".join(tags)}'.lower()
     if kind == 'drama':
-        return duration_sec > 60
-    return True
+        words = ['drama', 'film', 'story', 'cinematic', 'short', 'episode',
+                 '드라마', '영화', '스토리', '단편', '웹드라마']
+        bonus = 0.2 if series else 0.0
+    else:
+        words = ['ad', 'ads', 'commercial', 'brand', 'product', 'campaign', 'launch', 'ugc',
+                 '광고', '제품', '브랜드', '캠페인', '출시']
+        bonus = 0.0
+    found = sum(1 for w in words if w in hay)
+    return round(min(1.0, found / 3 + bonus), 3)
 
 
+def score(kind, m, j, kw_match, comment_signal):
+    """quality_score = 확정값이 아니라 파생물.
+    breakdown을 같이 저장해 가중치만 바꿔 재계산할 수 있게 한다."""
+    parts = {
+        'views':       15 * norm(math.log10(max(m['views'], 1)), math.log10(10_000_000)),
+        'like_rate':   20 * norm(m['like_rate'], 0.08),
+        'comment_rate':15 * norm(m['comment_rate'], 0.01),
+        'view_sub':    20 * norm(m['view_sub_ratio'], 10),
+        'freshness':   10 * max(0.0, 1 - m['age_days'] / 365),
+        'keyword':     15 * kw_match,
+        'clarity':     10 * (1.0 if (j['is_series_likely'] if kind == 'drama' else kw_match > 0.5) else 0.3),
+        'ai_signal':   15 * j['ai_signal'],
+        'comments_fb': 10 * max(0.0, comment_signal),
+        'pollution':  -40 * j['pollution'],
+    }
+    total = round(sum(parts.values()), 2)
+    return max(0.0, total), {k: round(v, 2) for k, v in parts.items()}
+
+
+# ─────────────────────────────────────────────────────────────
 def get_existing_ids():
-    """이미 저장된 video_id (페이지네이션으로 전부)"""
-    ids, offset, page = set(), 0, 1000
+    ids, offset = set(), 0
     while True:
-        headers = {**SUPABASE_HEADERS, 'Range': f'{offset}-{offset + page - 1}'}
-        res = requests.get(
-            f'{SUPABASE_URL}/rest/v1/youtube_refs?select=video_id',
-            headers=headers, timeout=30,
-        )
-        if res.status_code not in (200, 206):
-            print(f'기존 목록 조회 실패({res.status_code}): {res.text[:160]}')
+        h = {**SUPABASE_HEADERS, 'Range': f'{offset}-{offset + 999}'}
+        r = requests.get(f'{SUPABASE_URL}/rest/v1/youtube_refs?select=video_id', headers=h, timeout=30)
+        if r.status_code not in (200, 206):
             break
-        rows = res.json()
+        rows = r.json()
         if not rows:
             break
-        ids.update(r['video_id'] for r in rows)
-        if len(rows) < page:
+        ids.update(x['video_id'] for x in rows)
+        if len(rows) < 1000:
             break
-        offset += page
+        offset += 1000
     return ids
 
 
 def save(rows):
-    """service_role 키가 있으면 upsert(조회수 갱신), 없으면 insert-only."""
     if not rows:
         return 0
-    headers = dict(SUPABASE_HEADERS)
+    h = dict(SUPABASE_HEADERS)
     url = f'{SUPABASE_URL}/rest/v1/youtube_refs'
     if CAN_UPSERT:
-        headers['Prefer'] = 'return=minimal,resolution=merge-duplicates'
+        h['Prefer'] = 'return=minimal,resolution=merge-duplicates'
         url += '?on_conflict=video_id'
-
-    res = requests.post(url, headers=headers, json=rows, timeout=60)
-    if res.status_code in (200, 201, 204):
-        print(f'저장 완료: {len(rows)}개 ({"upsert" if CAN_UPSERT else "insert"})')
-        return len(rows)
-
-    print(f'배치 저장 실패({res.status_code}) → 개별 전환: {res.text[:160]}')
     ok = 0
-    for r in rows:
-        rr = requests.post(url, headers=headers, json=[r], timeout=30)
-        if rr.status_code in (200, 201, 204):
-            ok += 1
-    print(f'개별 저장: {ok}/{len(rows)}개')
+    for i in range(0, len(rows), 200):
+        chunk = rows[i:i + 200]
+        r = requests.post(url, headers=h, json=chunk, timeout=90)
+        if r.status_code in (200, 201, 204):
+            ok += len(chunk)
+        else:
+            print(f'  배치 실패({r.status_code}) → 개별 전환: {r.text[:140]}')
+            for one in chunk:
+                if requests.post(url, headers=h, json=[one], timeout=30).status_code in (200, 201, 204):
+                    ok += 1
     return ok
 
 
 def main():
     now = datetime.now(KST)
-    print(f'[{now:%Y-%m-%d %H:%M:%S} KST] AI 드라마/광고 레퍼런스 수집 시작')
-    print(f'모드: {"upsert (조회수 갱신 O)" if CAN_UPSERT else "insert-only (조회수 갱신 X — service_role 키 없음)"}')
+    print(f'[{now:%Y-%m-%d %H:%M:%S} KST] AI 드라마/광고 레퍼런스 수집 v2 ({SCORING_VERSION})')
+    print(f'모드: {"upsert" if CAN_UPSERT else "insert-only (service_role 키 없음)"}')
 
-    published_after = (now - timedelta(days=SEARCH_MONTHS * 30)).strftime('%Y-%m-%dT%H:%M:%SZ')
+    after = (now - timedelta(days=SEARCH_MONTHS * 30)).strftime('%Y-%m-%dT%H:%M:%SZ')
     existing = set() if CAN_UPSERT else get_existing_ids()
-    print(f'기존 저장분: {len(existing)}개' if not CAN_UPSERT else '기존 저장분: (upsert 모드라 조회 생략)')
+    print(f'기존 저장분: {len(existing)}개')
 
-    candidates = {}   # video_id -> 수집 맥락
-    searches = 0
-
+    cand, searches = {}, 0
     for kind, plan in SEARCH_PLAN.items():
         print(f'\n=== {plan["label"]} ===')
-        for lane, keywords in plan['lanes'].items():
-            for kw in keywords:
-                items = search_videos(kw, published_after)
+        for lane, kws in plan['lanes'].items():
+            for kw in kws:
+                items = search_videos(kw, after)
                 searches += 1
-                print(f'  [{lane}] "{kw}" → {len(items)}개')
+                new = 0
                 for it in items:
                     vid = it.get('id', {}).get('videoId', '')
-                    if not vid or vid in candidates or vid in existing:
+                    if not vid or vid in cand or vid in existing:
                         continue
                     sn = it.get('snippet', {})
-                    candidates[vid] = {
-                        'video_id': vid,
-                        'kind': kind,
-                        'lane': lane,
-                        'keyword': kw,
-                        'title': sn.get('title', ''),
-                        'channel': sn.get('channelTitle', ''),
+                    cand[vid] = {
+                        'video_id': vid, 'kind': kind, 'lane': lane, 'search_keyword': kw,
+                        'title': sn.get('title', ''), 'channel': sn.get('channelTitle', ''),
                         'published_at': sn.get('publishedAt', '')[:10],
                         'thumb': sn.get('thumbnails', {}).get('medium', {}).get('url', ''),
                         'url': f'https://www.youtube.com/watch?v={vid}',
                         'embed_url': f'https://www.youtube.com/embed/{vid}',
                     }
+                    new += 1
+                print(f'  [{lane:<9}] "{kw}" → {len(items)}개 (신규 {new})')
 
-    print(f'\n검색 {searches}회 (약 {searches * 100 + max(1, len(candidates) // 50)}유닛) / 후보 {len(candidates)}개')
-    if not candidates:
+    print(f'\n검색 {searches}회 / 신규 후보 {len(cand)}개')
+    if not cand:
         print('신규 후보 없음. 종료.')
         return
 
-    # 상세 조회 (50개씩)
-    ids = list(candidates)
-    details = {}
-    for i in range(0, len(ids), 50):
-        details.update(get_video_details(ids[i:i + 50]))
+    details = get_video_details(list(cand))
+    subs = get_channel_subs([d['channel_id'] for d in details.values()])
 
-    rows, dropped_short, dropped_views = [], 0, 0
-    for vid, base in candidates.items():
+    rows, drop_dur, drop_view = [], 0, 0
+    for vid, base in cand.items():
         d = details.get(vid)
         if not d:
             continue
-
-        shorts = is_shorts(base['title'], d['description'], d['tags'], d['duration_sec'], d['is_vertical'])
-        if not keep_video(base['kind'], d['duration_sec'], d['is_vertical'], shorts):
-            dropped_short += 1
-            continue
         if d['views'] < MIN_VIEWS:
-            dropped_views += 1
+            drop_view += 1
             continue
 
-        # 경과일 / 파생 지표 (합산하지 않고 각각 저장한다)
+        hay_title = base['title']
+        engine = detect_engine(f"{hay_title} {d['description']} {' '.join(d['tags'])}")
+        j = judge(base['kind'], hay_title, d['description'], d['tags'], engine)
+
+        tier = duration_tier(base['kind'], d['duration_sec'], j['is_series_likely'])
+        if tier is None:
+            drop_dur += 1
+            continue
+
         try:
             pub = datetime.strptime(base['published_at'], '%Y-%m-%d').replace(tzinfo=timezone.utc)
-            age_days = max(1, (now - pub).days)
+            age = max(1, (now - pub).days)
         except ValueError:
-            age_days = 1
+            age = 1
 
-        views = d['views']
-        engagement = round((d['likes'] * 0.6 + d['comments'] * 0.4) / views, 6) if views else 0
-        velocity = round(views / age_days, 2)
+        v = d['views']
+        sub = subs.get(d['channel_id'], 0)
+        m = {
+            'views': v, 'age_days': age,
+            'like_rate': round(d['likes'] / v, 6) if v else 0,
+            'comment_rate': round(d['comments'] / v, 6) if v else 0,
+            'view_sub_ratio': round(v / sub, 4) if sub else 0,
+            'views_per_day': round(v / age, 2),
+        }
+        kw_m = keyword_match(base['kind'], hay_title, d['description'], d['tags'], j['is_series_likely'])
+        q, breakdown = score(base['kind'], m, j, kw_m, 0.0)
 
-        haystack = f"{base['title']} {d['description']} {' '.join(d['tags'])}"
         rows.append({
-            **base,
-            'channel_id': d['channel_id'],
-            'duration_sec': d['duration_sec'],
-            'is_vertical': d['is_vertical'],
-            'is_short': shorts,
-            'views': views,
-            'likes': d['likes'],
-            'comments': d['comments'],
-            'age_days': age_days,
-            'engagement': engagement,
-            'velocity': velocity,
-            'engine': detect_engine(haystack),
-            'engine_raw': discover_engine(d['description']),
+            **base, 'tier': tier,
+            'channel_id': d['channel_id'], 'channel_subs': sub,
+            'duration_sec': d['duration_sec'], 'is_vertical': d['is_vertical'],
+            'likes': d['likes'], 'comments': d['comments'], **m,
+            'is_ai_generated_likely': j['is_ai_generated_likely'],
+            'is_ai_topic_only_likely': j['is_ai_topic_only_likely'],
+            'is_tutorial_or_review_likely': j['is_tutorial_or_review_likely'],
+            'is_series_likely': j['is_series_likely'],
+            'reject_reason': j['reject_reason'],
+            'ai_signal_score': j['ai_signal'], 'pollution_risk_score': j['pollution'],
+            'keyword_match_score': kw_m,
+            'quality_score': q, 'scoring_version': SCORING_VERSION,
+            'score_breakdown': breakdown,
+            'engine': engine, 'engine_raw': discover_engine(d['description']),
             'embeddable': d['embeddable'],
-            'description': d['description'][:4000],
-            'tags': d['tags'][:30],
+            'description': d['description'][:4000], 'tags': d['tags'][:30],
         })
 
-    print(f'쇼츠/길이 기준 제외: {dropped_short}개 · 조회수 미달 제외: {dropped_views}개')
-    print(f'저장 대상: {len(rows)}개')
+    print(f'길이 기준 제외 {drop_dur}개 · 조회수 미달 제외 {drop_view}개 → 후보 {len(rows)}개')
 
-    by_kind = {}
-    for r in rows:
-        by_kind[r['kind']] = by_kind.get(r['kind'], 0) + 1
-    for k, v in by_kind.items():
-        print(f'  {SEARCH_PLAN[k]["label"]}: {v}개')
+    # 댓글 분석 — 갈래별 상위 N개에만 (영상당 1유닛이라 전체는 낭비)
+    checked = 0
+    for kind in SEARCH_PLAN:
+        top = sorted([r for r in rows if r['kind'] == kind],
+                     key=lambda r: r['quality_score'], reverse=True)[:COMMENT_TOP_N]
+        for r in top:
+            st, sig = analyse_comments(r['video_id'], kind)
+            r['comment_status'], r['comment_signal'] = st, sig
+            checked += 1
+            if sig:
+                q, bd = score(kind, r, {
+                    'ai_signal': r['ai_signal_score'], 'pollution': r['pollution_risk_score'],
+                    'is_series_likely': r['is_series_likely'],
+                }, r['keyword_match_score'], sig)
+                r['quality_score'], r['score_breakdown'] = q, bd
+    print(f'댓글 분석: {checked}개 (상위 {COMMENT_TOP_N}개/갈래)')
 
-    # 모르는 엔진이 발견되면 눈에 띄게 찍는다 (검색어 유지보수 없이 판을 따라가기 위함)
+    gen = sum(1 for r in rows if r['is_ai_generated_likely'])
+    topic = sum(1 for r in rows if r['is_ai_topic_only_likely'])
+    print(f'\n★ AI로 만든 것: {gen}개 / AI에 관한 것(오염): {topic}개 / 판정 보류: {len(rows)-gen-topic}개')
+    for k, p in SEARCH_PLAN.items():
+        kr = [r for r in rows if r['kind'] == k]
+        kg = sum(1 for r in kr if r['is_ai_generated_likely'])
+        print(f'  {p["label"]}: 전체 {len(kr)}개 · AI 제작 {kg}개')
+
     unknown = sorted({r['engine_raw'] for r in rows if r['engine_raw'] and not r['engine']})
     if unknown:
-        print(f'\n★ 목록에 없는 엔진 후보: {", ".join(unknown[:20])}')
+        print(f'\n목록에 없는 엔진 후보: {", ".join(unknown[:15])}')
 
-    save(rows)
-    print(f'\n[{datetime.now(KST):%Y-%m-%d %H:%M:%S} KST] 완료')
+    saved = save(rows)
+    print(f'\n저장 완료: {saved}/{len(rows)}개')
+    print(f'[{datetime.now(KST):%Y-%m-%d %H:%M:%S} KST] 완료')
 
 
 if __name__ == '__main__':
