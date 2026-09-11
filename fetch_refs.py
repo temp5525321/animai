@@ -573,6 +573,23 @@ def main():
         print(f'\n목록에 없는 엔진 후보: {", ".join(unknown[:15])}')
 
     if DRY_RUN:
+        # ★DRY RUN의 목적은 숫자가 아니라 "목록이 쓸 만한가"를 눈으로 보는 것이다.
+        for k, p in SEARCH_PLAN.items():
+            top = sorted([r for r in rows if r['kind'] == k],
+                         key=lambda r: r['quality_score'], reverse=True)[:15]
+            print(f'\n──── {p["label"]} 상위 15 (quality_score 순) ────')
+            for i, r in enumerate(top, 1):
+                mark = 'AI제작' if r['is_ai_generated_likely'] else ('오염' if r['is_ai_topic_only_likely'] else '보류')
+                mm, ss = divmod(r['duration_sec'], 60)
+                print(f"{i:>2}. [{r['quality_score']:>5.1f}] {mark:<5} {mm}:{ss:02d} "
+                      f"조회{r['views']:>10,} 구독대비{r['view_sub_ratio']:>7.2f} "
+                      f"좋아요율{r['like_rate']:.4f} {(r['engine'] or '-'):<10} | {r['title'][:44]}")
+                print(f"      채널 {r['channel'][:24]:<24} 검색어 \"{r['search_keyword']}\"")
+        polluted = [r for r in rows if r['is_ai_topic_only_likely']]
+        if polluted:
+            print(f'\n──── 오염 판정 {len(polluted)}개 (사유별) ────')
+            for r in polluted[:10]:
+                print(f"  {r['title'][:44]} → {r['reject_reason']}")
         print(f'\n[DRY RUN] 저장하지 않음. 저장 대상이었던 것: {len(rows)}개')
     else:
         print(f'\n저장 완료: {save(rows)}/{len(rows)}개')
