@@ -535,8 +535,15 @@ def main():
           + (f' ← REFS_MONTHS={SEARCH_MONTHS}로 덮어씀' if SEARCH_MONTHS else ''))
     print(f'API 키: {_KEY_SOURCE}  (fetch_youtube.py는 YOUTUBE_API_KEY_TEST를 쓴다 — 할당량 분리)')
 
-    existing = set() if CAN_UPSERT else get_existing_ids()
-    print(f'기존 저장분: {len(existing)}개')
+    # upsert 모드면 어차피 덮어쓰므로 조회 불필요.
+    # Supabase 주소가 없으면(로컬 DRY RUN) 조회 자체를 건너뛴다.
+    if CAN_UPSERT or not SUPABASE_URL:
+        existing = set()
+        print('기존 저장분: (조회 생략 — '
+              + ('upsert 모드' if CAN_UPSERT else 'Supabase 미설정, 로컬 모드') + ')')
+    else:
+        existing = get_existing_ids()
+        print(f'기존 저장분: {len(existing)}개')
 
     cand, searches = {}, 0
     for kind, plan in SEARCH_PLAN.items():

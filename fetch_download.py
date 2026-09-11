@@ -57,12 +57,20 @@ def category_guess(r):
 
 
 def series_key(r):
-    """시리즈 묶음 식별 — 같은 채널에서 회차 표기만 다른 것들을 한 그룹으로."""
+    """시리즈 묶음 식별 — 같은 채널의 같은 시리즈를 한 그룹으로.
+
+    ★회차 번호만 지우면 안 된다. 화마다 부제가 달라 따로 흩어진다(실측).
+      CRAFT (1979): The Cove | Episode 2   → CRAFT1979TheCove
+      CRAFT (1979): The Point | Episode 3  → CRAFT1979ThePoint   ← 다른 그룹이 됐다
+      그래서 회차를 지운 뒤 구분자(: | ｜ -) 앞의 '시리즈명'만 남긴다.
+    """
     if not r.get('is_series_likely'):
         return None
-    t = re.sub(r'(?i)(ep\.?\s*\d+|episode\s*\d+|\d+\s*화|part\s*\d+|\[\d+/\d+\])', '', r.get('title', ''))
-    t = re.sub(r'[^0-9A-Za-z가-힣]+', '', t)[:40]
-    return f"{r.get('channel_id','')}::{t}" if t else None
+    t = r.get('title', '')
+    t = re.sub(r'(?i)(ep\.?\s*\d+|episode\s*\d+|\d+\s*화|part\s*\d+|\[\d+/\d+\]|시즌\s*\d+)', '', t)
+    t = re.split(r'[:\|｜\-–—]', t)[0]          # 시리즈명만
+    t = re.sub(r'[^0-9A-Za-z가-힣]+', '', t)[:30]
+    return f"{r.get('channel_id','')}::{t}" if len(t) >= 3 else None
 
 
 def sidecar(r, dest, filename, crawl_date, comments=None):
