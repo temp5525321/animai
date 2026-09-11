@@ -51,10 +51,19 @@ YT_VIDEOS = 'https://www.googleapis.com/youtube/v3/videos'
 YT_CHANNELS = 'https://www.googleapis.com/youtube/v3/channels'
 YT_COMMENTS = 'https://www.googleapis.com/youtube/v3/commentThreads'
 
-SEARCH_MONTHS = 12
-PAGES_PER_KEYWORD = 2      # 키워드당 페이지 수 (1페이지=50개, 100유닛)
-COMMENT_TOP_N = 100        # 갈래별 상위 몇 개에만 댓글 분석할지
-MIN_VIEWS = 1000
+# ─────────────────────────────────────────────────────────────
+# 실험 손잡이 — 코드를 고치지 않고 환경변수로 조절한다.
+#   ★할당량을 먹는 건 (키워드 수 × 페이지 수) 뿐이다.
+#     검색 기간(REFS_MONTHS)은 결과만 거를 뿐 비용은 그대로다.
+#   기본값 = 실험 모드(싸게, 자주). 본격 수집 때만 페이지·댓글을 올린다.
+#     실험  1페이지 + 댓글끔 = 약 2,400유닛 → 하루에 세 번 더 돌릴 수 있음
+#     본수집 2페이지 + 댓글100 = 약 5,000유닛
+# ─────────────────────────────────────────────────────────────
+SEARCH_MONTHS = int(os.environ.get('REFS_MONTHS', 6))        # 최신 위주. AI는 반년이면 한 세대 뒤처진다
+PAGES_PER_KEYWORD = int(os.environ.get('REFS_PAGES', 1))     # 키워드당 페이지 (1페이지=50개, 100유닛)
+COMMENT_TOP_N = int(os.environ.get('REFS_COMMENT_TOP', 0))   # 갈래별 상위 N개만 댓글 분석. 0=끔
+MIN_VIEWS = int(os.environ.get('REFS_MIN_VIEWS', 1000))
+DRY_RUN = os.environ.get('REFS_DRY_RUN', '') == '1'          # 저장하지 않고 결과만 본다
 
 # ─────────────────────────────────────────────────────────────
 # ★ 엔진 목록 — 유지보수는 여기 한 곳만 하면 된다.
@@ -426,7 +435,12 @@ def save(rows):
 def main():
     now = datetime.now(KST)
     print(f'[{now:%Y-%m-%d %H:%M:%S} KST] AI 드라마/광고 레퍼런스 수집 v2 ({SCORING_VERSION})')
-    print(f'모드: {"upsert" if CAN_UPSERT else "insert-only (service_role 키 없음)"}')
+    print(f'모드: {"upsert" if CAN_UPSERT else "insert-only (service_role 키 없음)"}'
+          + (' · DRY RUN' if DRY_RUN else ''))
+    n_kw = sum(len(v) for p in SEARCH_PLAN.values() for v in p['lanes'].values())
+    est = n_kw * PAGES_PER_KEYWORD * 100 + COMMENT_TOP_N * len(SEARCH_PLAN) + 50
+    print(f'설정: 키워드 {n_kw}개 × {PAGES_PER_KEYWORD}페이지 · 최근 {SEARCH_MONTHS}개월 '
+          f'· 댓글 상위 {COMMENT_TOP_N} → 예상 약 {est:,}유닛')
 
     after = (now - timedelta(days=SEARCH_MONTHS * 30)).strftime('%Y-%m-%dT%H:%M:%SZ')
     existing = set() if CAN_UPSERT else get_existing_ids()
@@ -523,7 +537,7 @@ def main():
 
     # 댓글 분석 — 갈래별 상위 N개에만 (영상당 1유닛이라 전체는 낭비)
     checked = 0
-    for kind in SEARCH_PLAN:
+    for kind in SEARCH_PLAN if COMMENT_TOP_N else []:
         top = sorted([r for r in rows if r['kind'] == kind],
                      key=lambda r: r['quality_score'], reverse=True)[:COMMENT_TOP_N]
         for r in top:
@@ -536,7 +550,7 @@ def main():
                     'is_series_likely': r['is_series_likely'],
                 }, r['keyword_match_score'], sig)
                 r['quality_score'], r['score_breakdown'] = q, bd
-    print(f'댓글 분석: {checked}개 (상위 {COMMENT_TOP_N}개/갈래)')
+    print(f'댓글 분석: {checked}개' + ('' if COMMENT_TOP_N else ' (꺼짐 — REFS_COMMENT_TOP=0)'))
 
     gen = sum(1 for r in rows if r['is_ai_generated_likely'])
     topic = sum(1 for r in rows if r['is_ai_topic_only_likely'])
@@ -550,8 +564,10 @@ def main():
     if unknown:
         print(f'\n목록에 없는 엔진 후보: {", ".join(unknown[:15])}')
 
-    saved = save(rows)
-    print(f'\n저장 완료: {saved}/{len(rows)}개')
+    if DRY_RUN:
+        print(f'\n[DRY RUN] 저장하지 않음. 저장 대상이었던 것: {len(rows)}개')
+    else:
+        print(f'\n저장 완료: {save(rows)}/{len(rows)}개')
     print(f'[{datetime.now(KST):%Y-%m-%d %H:%M:%S} KST] 완료')
 
 
