@@ -584,7 +584,7 @@ def main():
                 print(f"{i:>2}. [{r['quality_score']:>5.1f}] {mark:<5} {mm}:{ss:02d} "
                       f"조회{r['views']:>10,} 구독대비{r['view_sub_ratio']:>7.2f} "
                       f"좋아요율{r['like_rate']:.4f} {(r['engine'] or '-'):<10} | {r['title'][:44]}")
-                print(f"      채널 {r['channel'][:24]:<24} 검색어 \"{r['search_keyword']}\"")
+                print(f"      {r['url']}  | 채널 {r['channel'][:22]} | 검색어 \"{r['search_keyword']}\"")
         polluted = [r for r in rows if r['is_ai_topic_only_likely']]
         if polluted:
             print(f'\n──── 오염 판정 {len(polluted)}개 (사유별) ────')
