@@ -63,6 +63,8 @@ def main():
 
     dl_ok = len(re.findall(r'✓ [\d.]+MB', log))
     dl_fail = log.count('✗ 실패')
+    m = re.search(r'검수 (\d+)편 → 통과 (\d+) · 탈락 (\d+)', log)
+    verify = (int(m.group(2)), int(m.group(3))) if m else None
 
     # ★429가 있으면 '정상'이라고 하지 않는다. 수집이 불완전하기 때문이다.
     empty_kind = [lab for k, lab in [('drama', '드라마'), ('ad_like', '광고'), ('general', '일반')]
@@ -81,6 +83,8 @@ def main():
         f'오늘 받은 파일  {today_files}편 · {today_mb:,.0f}MB',
         f'갈래별         드라마 {kinds.get("drama",0)} · 광고 {kinds.get("ad_like",0)} · 일반 {kinds.get("general",0)}',
     ]
+    if verify:
+        lines.append(f'검수           통과 {verify[0]} · 탈락 {verify[1]} (격리됨)')
     if q429:
         lines.append(f'⚠️ 할당량 429  {q429}회 — 수집 불완전 (리셋 KST 17시)')
     if empty_kind:
