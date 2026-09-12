@@ -62,6 +62,12 @@ YT_COMMENTS = 'https://www.googleapis.com/youtube/v3/commentThreads'
 #     실험  1페이지 + 댓글끔 = 약 2,400유닛 → 하루에 세 번 더 돌릴 수 있음
 #     본수집 2페이지 + 댓글100 = 약 5,000유닛
 # ─────────────────────────────────────────────────────────────
+# ★429(할당량 초과)를 세어 둔다. 너무 많으면 '성공'으로 끝내지 않는다.
+#   실측 2026-09-12: 26회 검색 중 44번 429가 나 후보가 1,178 → 178개로 줄었는데
+#   종료코드가 0이라 스케줄러에는 정상으로 보였다.
+QUOTA = {'hits': 0}
+QUOTA_FAIL_RATIO = float(os.environ.get('REFS_QUOTA_FAIL_RATIO', 0.5))
+
 SEARCH_MONTHS = int(os.environ.get('REFS_MONTHS', 0))        # 0 = 갈래별 기본값 사용. 값을 주면 전부 덮어쓴다
 PAGES_PER_KEYWORD = int(os.environ.get('REFS_PAGES', 1))     # 키워드당 페이지 (1페이지=50개, 100유닛)
 COMMENT_TOP_N = int(os.environ.get('REFS_COMMENT_TOP', 0))   # 갈래별 상위 N개만 댓글 분석. 0=끔
@@ -315,7 +321,11 @@ def search_videos(keyword, published_after, order='viewCount', pages=PAGES_PER_K
             params['pageToken'] = token
         r = requests.get(YT_SEARCH, params=params, timeout=30)
         if r.status_code != 200:
-            print(f'    검색 오류({r.status_code}): {r.text[:140]}')
+            if r.status_code == 429:
+                QUOTA['hits'] += 1
+                print(f'    할당량 초과(429) — 누적 {QUOTA["hits"]}회')
+            else:
+                print(f'    검색 오류({r.status_code}): {r.text[:140]}')
             break
         data = r.json()
         out.extend(data.get('items', []))
@@ -783,6 +793,11 @@ def main():
     else:
         print(f'\n저장 완료: {save(rows)}/{len(rows)}개')
     print(f'[{datetime.now(KST):%Y-%m-%d %H:%M:%S} KST] 완료')
+    if QUOTA['hits'] and QUOTA['hits'] >= searches * QUOTA_FAIL_RATIO:
+        print(f'[FAIL] 할당량 초과가 심합니다 — 검색 {searches}회 중 429가 {QUOTA["hits"]}회.'
+              f' 수집이 불완전하므로 실패로 종료합니다.')
+        print('       유튜브 할당량 리셋은 KST 오후 5시입니다.')
+        sys.exit(2)
 
 
 if __name__ == '__main__':

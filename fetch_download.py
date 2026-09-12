@@ -139,14 +139,29 @@ def run_ytdlp(url, dest, stem):
             '--no-warnings', '--quiet', '--no-progress']
 
     # ① 영상 + 썸네일 (필수)
-    p1 = subprocess.run(base + [
-        '-f', 'bv*[vcodec^=avc1][height<=1080]+ba[ext=m4a]/bv*[height<=1080]+ba/b',
-        '--merge-output-format', 'mp4',
-        '--write-thumbnail', '--convert-thumbnails', 'jpg',
-        '-o', out, url,
-    ], capture_output=True, text=True, timeout=900)
-    if p1.returncode != 0:
-        return p1.returncode, (p1.stderr or '').strip()[:300]
+    #    ★403은 유튜브가 간헐적으로 내는 것이라 재시도하면 대개 풀린다(실측).
+    #      1차는 기본 클라이언트, 2차는 고화질을 내주는 클라이언트로 바꿔 시도한다.
+    attempts = [
+        [],
+        ['--extractor-args', 'youtube:player_client=tv_embedded,android_vr'],
+        ['--extractor-args', 'youtube:player_client=web_safari', '--http-chunk-size', '5M'],
+    ]
+    last = ''
+    for n, extra in enumerate(attempts, 1):
+        p1 = subprocess.run(base + extra + [
+            '-f', 'bv*[vcodec^=avc1][height<=1080]+ba[ext=m4a]/bv*[height<=1080]+ba/b',
+            '--merge-output-format', 'mp4',
+            '--write-thumbnail', '--convert-thumbnails', 'jpg',
+            '-o', out, url,
+        ], capture_output=True, text=True, timeout=900)
+        if p1.returncode == 0:
+            break
+        last = (p1.stderr or '').strip()[:300]
+        if n < len(attempts):
+            print(f'        재시도 {n+1}/{len(attempts)} — {last[:70]}')
+            time.sleep(5)
+    else:
+        return p1.returncode, last
 
     # ② 자막 (선택 — 실패해도 무시)
     try:
