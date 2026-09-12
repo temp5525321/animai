@@ -201,6 +201,41 @@ TUTORIAL_MARKERS = [
     'create a ', 'make ai', 'better than 99', 'ranking:', 'try not to', 'the most ',
     '만드는 법', '만드는법', '강의', '강좌', '리뷰', '리액션', '뉴스', '모음', '정리', '비교',
     '따라하기', '초보', '꿀팁',
+    # ★한국어 튜토리얼·툴홍보 어법 — 한국 콘텐츠가 44%로 늘었는데 필터가 영어 위주였다.
+    #   실측 2026-09-12: 「프롬프트 한 줄로 바꾸는 AI 영상 수정방법」
+    #   「누구나 AI 영상을 만들 수 있는 이유」「텍스트만 넣었는데 이 영상이 나온다고?」가 통과했다.
+    '수정방법', '제작방법', '만드는방법', '활용법', '사용법', '쓰는법',
+    '수 있는 이유', '하는 이유', '되는 이유', '나온다고', '가능하다고',
+    '총정리', '후기', '공개합니다', '알려드립니다', '체험', '무료로',
+    '하이라이트', '명장면', '몰아보기 광고',
+]
+
+# ★AI로 만들었지만 '연출 레퍼런스'가 아닌 갈래.
+#   실측: AI 증시 브리핑 · 역사 지식 쇼츠 · 요리 레시피가 general 로 들어왔다.
+#   AI 제작 여부와 무관하게 스토리·연출을 배울 수 없는 것들이다.
+NON_REFERENCE_MARKERS = [
+    '브리핑', '증시', '환율', '주가', '코스피', '나스닥', '시황', '재테크', '부동산',
+    '한국사', '세계사', '역사', '한능검', '지식', '상식', '정보',
+    '레시피', '만들기 요리', '요리법', '반찬', '명절음식',
+    '날씨', '운세', '사주', '로또', '속보',
+    'briefing', 'stock market', 'recipe', 'horoscope', 'lottery',
+]
+
+# ★"AI로 만든 게 아니다"라고 제작자가 스스로 밝힌 신호.
+#   실측: 「CG 없이 떨어지는 물방울만으로…」(실제 장치 촬영),
+#        「한 컷은 AI로 만든 영상이며, 나머지는 실제 사진입니다」,
+#        「Wait until you see the final scenes (No AI)」
+#   이런 건 AI 제작 판정에서 빼야 한다.
+NOT_AI_MARKERS = [
+    'cg 없이', 'cg가 아니', 'cg 아님', '나머지는 실제', '실제로 촬영', '직접 촬영한',
+    '실사 촬영', '합성 아님', 'ai 아님', 'ai가 아니',
+    '(no ai)', 'no ai used', 'without ai', 'not ai generated', 'real footage', 'no cgi',
+]
+
+# 제휴·협찬 마케팅 — 연출이 아니라 판매가 목적
+AFFILIATE_MARKERS = [
+    '쇼핑 커넥트', '커넥트 활동', '수수료를 제공', '제휴', '협찬', '구매가 필요하면',
+    '공식 체험 링크', '이벤트', '최저가', 'affiliate', 'sponsored by',
 ]
 
 # 광고성 판정용 어휘 (태그 계산에 쓴다)
@@ -413,9 +448,16 @@ def judge(kind, title, desc, tags, engine):
     brand_hits = hits(hay, AI_PRODUCT_BRANDS)
     bcast_hits = hits(hay, BROADCAST_MARKERS)
     tut_hits = hits(title, TUTORIAL_MARKERS)
+    # ★비레퍼런스(지식·브리핑·레시피)와 제휴마케팅은 제목+설명 양쪽에서 본다.
+    #   제목만 봐서는 「윤기 자르르 한식잡채만들기」가 요리인지 알기 어렵다.
+    nonref_hits = hits(hay, NON_REFERENCE_MARKERS)
+    aff_hits = hits(desc, AFFILIATE_MARKERS)
+    notai_hits = hits(hay, NOT_AI_MARKERS)
     series = bool(hits(title, SERIES_MARKERS))
 
     ai_signal = min(1.0, 0.55 * bool(gen_hits) + 0.45 * bool(engine) + 0.1 * (len(gen_hits) > 1))
+    if notai_hits:
+        ai_signal = 0.0   # 제작자가 "AI 아니다"라고 밝혔으면 그 말을 따른다
 
     # ★오염을 두 갈래로 나눈다 — 성격이 다르기 때문이다.
     #   ①"AI 제품 광고인가"  → AI로 만들었다고 명시하면 의심을 낮춰도 된다
@@ -425,7 +467,8 @@ def judge(kind, title, desc, tags, engine):
     if ai_signal >= 0.5:
         pol_ad = max(0.0, pol_ad - 0.3)
     pol_tut = 0.45 * bool(tut_hits)
-    pollution = min(1.0, pol_ad + pol_tut)
+    pol_nonref = 0.5 * bool(nonref_hits) + 0.4 * bool(aff_hits)
+    pollution = min(1.0, pol_ad + pol_tut + pol_nonref)
 
     ai_gen = ai_signal >= 0.45
     topic_only = (not ai_gen) and (pollution >= 0.35 or bool(brand_hits))
@@ -433,8 +476,14 @@ def judge(kind, title, desc, tags, engine):
     # ★사유는 AI 제작 판정과 무관하게 남긴다.
     #   "AI로 만든 뉴스 리포트"는 AI 제작이면서 동시에 레퍼런스로는 쓸모없다.
     reason = None
-    if tut_hits:
-        reason = f'해설·리뷰·뉴스로 보임: {", ".join(tut_hits[:3])}'
+    if notai_hits:
+        reason = f'제작자가 AI가 아니라고 밝힘: {", ".join(notai_hits[:2])}'
+    elif nonref_hits:
+        reason = f'연출 레퍼런스가 아님(지식·브리핑·레시피류): {", ".join(nonref_hits[:3])}'
+    elif aff_hits:
+        reason = f'제휴·협찬 마케팅으로 보임: {", ".join(aff_hits[:2])}'
+    elif tut_hits:
+        reason = f'해설·리뷰·튜토리얼로 보임: {", ".join(tut_hits[:3])}'
     elif topic_only and brand_hits:
         reason = f'AI 제품 광고로 보임 (AI로 만든 것이 아님): {", ".join(brand_hits[:3])}'
     elif topic_only and bcast_hits:
@@ -447,7 +496,7 @@ def judge(kind, title, desc, tags, engine):
         'pollution': round(pollution, 3),
         'is_ai_generated_likely': ai_gen,
         'is_ai_topic_only_likely': topic_only,
-        'is_tutorial_or_review_likely': bool(tut_hits),
+        'is_tutorial_or_review_likely': bool(tut_hits or nonref_hits or aff_hits),
         'is_series_likely': series,
         'reject_reason': reason,
     }
