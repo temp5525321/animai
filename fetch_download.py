@@ -45,14 +45,27 @@ def pick(rows, kind, n):
     return pool[:n]
 
 
+# ★장편 서사형은 general 이 아니라 drama 다 (_exchange/decisions.md 2026-09-12).
+#   「창작 AI 실사화 로판 소꿉친구가 북부대공이 되었다 1화」(463초)가 general 로 갔던 건 오류.
+NARRATIVE_SIGNALS = [
+    '드라마', '로판', '웹드라마', '단편영화', '단편', '영화', '시리즈', '화 ', '1화', '2화',
+    'episode', 'ep.', 'ep ', 'series', 'short film', 'ai film', 'web drama', 'webdrama',
+]
+
+
 def category_guess(r):
     tags = r.get('auto_tags') or []
     if '메이킹' in tags:
         return 'making_of'
     if r.get('is_tutorial_or_review_likely'):
         return 'review'
-    if r.get('kind') == 'general' and (r.get('ad_likeness') or 0) >= 0.66:
-        return 'ad'
+    if r.get('kind') == 'general':
+        if (r.get('ad_likeness') or 0) >= 0.66:
+            return 'ad'
+        # 60초 초과 + 서사 신호 + 비튜토리얼 → drama
+        hay = f"{r.get('title','')} {r.get('description','')} {' '.join(r.get('tags') or [])}".lower()
+        if (r.get('duration_sec') or 0) > 60 and any(w in hay for w in NARRATIVE_SIGNALS):
+            return 'drama'
     return CATEGORY.get(r.get('kind'), 'unknown')
 
 
@@ -180,9 +193,12 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('source')
     ap.add_argument('--dest', default=DEST_DEFAULT)
-    ap.add_argument('--drama', type=int, default=10)
-    ap.add_argument('--ad', type=int, default=30)
-    ap.add_argument('--general', type=int, default=20)
+    # ★수량은 _exchange/decisions.md 의 합의를 따른다 (2026-09-12, Dan 승인)
+    #   general 20 -> 5 (7일 실험) · 남는 15슬롯은 ads +10 / drama +5
+    #   이유: 9/11 general 은 S후보 0/18 로 제작 활용성이 낮았다.
+    ap.add_argument('--drama', type=int, default=15)
+    ap.add_argument('--ad', type=int, default=40)
+    ap.add_argument('--general', type=int, default=5)
     ap.add_argument('--dry', action='store_true', help='받지 않고 대상만 출력')
     a = ap.parse_args()
 
