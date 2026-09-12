@@ -20,6 +20,8 @@ KST = timezone(timedelta(hours=9))
 PROJ = r'C:\DEV\ai gathering'
 LIB = r'C:\AI_Production_System\reference_library'
 TG_CONF = r'C:\DEV\grok_auto\telegram_config.json'
+INTAKE = os.path.join(LIB, 'reports', 'daily_intake')
+EXCHANGE = os.path.join(LIB, '_exchange')
 
 
 def tail_reason(log_text):
@@ -91,6 +93,32 @@ def main():
         lines.append(f'⚠️ 0건 갈래   {" · ".join(empty_kind)}')
     if reason:
         lines.append(f'⚠️ {reason}')
+    # ── 분석 세션(Codex)이 남긴 등급 ──
+    #    같은 디스크에 파일로 오간다. 사람이 중간에서 전달할 필요가 없다.
+    ip = os.path.join(INTAKE, day, 'intake_report.json')
+    if os.path.exists(ip):
+        try:
+            j = json.load(io.open(ip, encoding='utf-8'))
+            g = j.get('by_grade', {})
+            lines.append('')
+            lines.append(f'[분석] 처리 {j.get("processed_count", 0)}편 · '
+                         + ' · '.join(f'{k} {v}' for k, v in g.items()))
+        except Exception:
+            pass
+    else:
+        lines.append('')
+        lines.append('[분석] 아직 처리 전')
+
+    # ── 상대 세션이 게시판에 남긴 미처리 항목 ──
+    fa = os.path.join(EXCHANGE, 'from_analyst.md')
+    if os.path.exists(fa):
+        todo = [ln.strip() for ln in io.open(fa, encoding='utf-8')
+                if ln.strip().startswith('- [ ]')]
+        if todo:
+            lines.append(f'[게시판] 분석 쪽 요청 {len(todo)}건 대기')
+            for t in todo[:2]:
+                lines.append(f'  · {t[5:][:60]}')
+
     lines += ['', f'로그: {logp}', '페이지: https://temp5525321.github.io/animai/refs.html']
     text = '\n'.join(lines)
 
