@@ -110,8 +110,14 @@ def main():
         lines.append('[분석] 아직 처리 전')
 
     # ── 상대 세션이 게시판에 남긴 미처리 항목 ──
+    # ★상대가 최근에 쓴 글의 미처리 항목만 센다.
+    #   답을 이미 했는데 상대가 [x] 처리를 안 하면 계속 '대기'로 뜬다.
+    #   내가 마지막으로 쓴 시각보다 상대 파일이 더 새로울 때만 알린다.
     fa = os.path.join(EXCHANGE, 'from_analyst.md')
-    if os.path.exists(fa):
+    fc = os.path.join(EXCHANGE, 'from_crawler.md')
+    fresh = (os.path.exists(fa) and os.path.exists(fc)
+             and os.path.getmtime(fa) > os.path.getmtime(fc))
+    if fresh:
         todo = [ln.strip() for ln in io.open(fa, encoding='utf-8')
                 if ln.strip().startswith('- [ ]')]
         if todo:
@@ -127,7 +133,11 @@ def main():
     print(text)
     print(f'\n요약 저장: {out}')
 
-    # 텔레그램
+    # 텔레그램 — 06:00 배치에서는 건너뛴다.
+    # 분석(07:30)이 끝난 뒤 07:45 에 별도 작업이 다시 돌려 보낸다.
+    if os.environ.get('REFS_NO_TELEGRAM') == '1':
+        print('텔레그램 전송: 건너뜀 (07:45 보고 작업이 보냅니다)')
+        return
     try:
         import requests
         c = json.load(io.open(TG_CONF, encoding='utf-8'))
