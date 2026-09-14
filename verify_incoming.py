@@ -54,14 +54,23 @@ def main():
         return
 
     keep, drop = [], []
+    skipped = 0
     for f in files:
         d = json.load(io.open(f, encoding='utf-8'))
+        # ★Dan이 직접 지정한 것은 판정하지 않는다.
+        #   사람이 이유가 있어 고른 것을 규칙으로 되돌리면 안 된다.
+        #   실측 2026-09-15: 슈카월드 해설·아스트라 툴소개가 격리됐다. 둘 다 Dan 지정분.
+        if d.get('manual_request'):
+            keep.append((f, d, {'reject_reason': None}))
+            skipped += 1
+            continue
         j = judge_sidecar(d)
         bad = (not j['is_ai_generated_likely']) or j['pollution'] >= 0.35 \
             or j['is_tutorial_or_review_likely']
         (drop if bad else keep).append((f, d, j))
 
-    print(f'검수 {len(files)}편 → 통과 {len(keep)} · 탈락 {len(drop)}')
+    print(f'검수 {len(files)}편 → 통과 {len(keep)} · 탈락 {len(drop)}'
+          + (f' (수동 지정 {skipped}편은 판정 제외)' if skipped else ''))
     if drop:
         print('\n── 탈락 ──')
         for _, d, j in drop:
