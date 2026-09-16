@@ -33,14 +33,25 @@ CATEGORY = {'drama': 'drama', 'ad_like': 'ad', 'general': 'unknown'}
 HASHTAG = re.compile(r'#([0-9A-Za-z가-힣_]+)')
 
 
+# ★점수 하한 — 정원을 억지로 채우지 않는다.
+#   실측 2026-09-16: 광고 40편을 채우려다 38.5점짜리까지 긁어와 B등급이 처음 나왔다.
+#   분석 세션 등급과 우리 점수가 잘 맞는다:
+#     ads  S후보 최저 70.0 / A 38.9~77.0 / B 38.5·42.6
+#     drama S후보 73편 전부 최저 83.9 (하한이 사실상 불필요)
+#   후보가 적은 날은 적게 받는 편이 낫다.
+MIN_SCORE = {'drama': 60.0, 'ad_like': 50.0, 'general': 75.0}
+
+
 def pick(rows, kind, n):
     """갈래별 상위 N. ★게이트를 먼저 통과시키고 점수로 정렬한다.
        (점수만으로 뽑으면 급등한 튜토리얼이 올라온다)"""
+    floor = MIN_SCORE.get(kind, 0)
     pool = [r for r in rows
             if r.get('kind') == kind
             and r.get('is_ai_generated_likely')
             and (r.get('pollution_risk_score') or 0) < 0.35
-            and not r.get('is_tutorial_or_review_likely')]
+            and not r.get('is_tutorial_or_review_likely')
+            and (r.get('quality_score') or 0) >= floor]
     pool.sort(key=lambda r: -(r.get('quality_score') or 0))
     return pool[:n]
 
@@ -213,7 +224,8 @@ def main():
     print(f'[{now:%Y-%m-%d %H:%M} KST] 다운로드 대상 {len(targets)}개')
     for k, lab, n in [('drama', '드라마', a.drama), ('ad_like', '광고성', a.ad), ('general', '일반', a.general)]:
         got = sum(1 for r in targets if r['kind'] == k)
-        print(f'  {lab:<5} {got:>3}/{n}  ' + ('(후보 부족)' if got < n else ''))
+        print(f'  {lab:<5} {got:>3}/{n}'
+              + (f'  (후보 부족 — {MIN_SCORE.get(k, 0):.0f}점 이상이 {got}편뿐)' if got < n else ''))
     est = sum(r['duration_sec'] for r in targets) * 147 / 493
     print(f'예상 용량 약 {est:,.0f}MB\n')
 
