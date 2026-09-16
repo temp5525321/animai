@@ -157,9 +157,20 @@ SEARCH_PLAN = {
             # ★"확정 광고"가 아니라 "광고성 AI 영상 후보"로만 취급한다.
             #   AI 제품/서비스/앱 광고 계열과 'Runway commercial' 단독은 오폭이 심해 전부 뺐다.
             # spec ad(5개)·brand film(7개)은 수확이 적어 뺐다
-            'generated': {'days': 90, 'orders': ['date'], 'kw': [
-                'AI 광고 영상',
-                'AI generated commercial', 'made with AI commercial', 'AI UGC ad']},
+            # ★2026-09-16: 검색어 4개로는 후보가 완전히 고갈됐다(신규 0편).
+            #   같은 영상을 매일 다시 받고 있었던 것이 가려져 있었다.
+            #   viewCount 를 병행해 '검증된 구작'도 들여오고, 어휘를 넓힌다.
+            'generated': {'days': 90, 'orders': ['date', 'viewCount'], 'kw': [
+                'AI 광고 영상', 'AI로 만든 광고', 'AI 제작 광고',
+                'AI generated commercial', 'made with AI commercial', 'AI UGC ad',
+                'generative AI ad', 'AI product video ad']},
+            # 엔진 + 광고 — 정밀도가 높은 갈래
+            'engine': {'days': 90, 'orders': ['date'], 'kw':
+                [f'{e} commercial' for e in SEARCH_ENGINES]},
+            # 업종별 — 광고는 업종마다 문법이 달라 갈래를 나눌 가치가 있다
+            'vertical': {'days': 180, 'orders': ['viewCount'], 'kw': [
+                'AI fashion ad', 'AI beauty commercial', 'AI food commercial',
+                'AI car commercial', 'AI 뷰티 광고', 'AI 패션 광고']},
         },
     },
 }

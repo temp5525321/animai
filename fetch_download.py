@@ -42,12 +42,36 @@ HASHTAG = re.compile(r'#([0-9A-Za-z가-힣_]+)')
 MIN_SCORE = {'drama': 60.0, 'ad_like': 50.0, 'general': 75.0}
 
 
-def pick(rows, kind, n):
+LIBRARY = 'C:/AI_Production_System/reference_library'
+_ID_IN_NAME = re.compile(r'\[([A-Za-z0-9_-]{11})\]\.mp4$')
+
+
+def already_have(root=LIBRARY):
+    """★이미 받은 video_id 를 라이브러리 파일명에서 읽는다.
+
+    로컬 모드에서는 DB 조회를 건너뛰고 refs_dryrun.json 은 매일 덮어써지므로
+    '이미 받았다'는 기억이 없었다. 그래서 매일 같은 최고점 영상을 다시 골랐다.
+    실측 2026-09-16: 선별 47편이 전부 기보유분이고 신규가 0편이었다.
+    파일명의 [video_id] 가 유일하게 믿을 수 있는 기록이다
+    (분석 세션이 raw_videos 로 옮겨도 파일명은 따라간다).
+    """
+    have = set()
+    for dirpath, _, files in os.walk(root):
+        for f in files:
+            m = _ID_IN_NAME.search(f)
+            if m:
+                have.add(m.group(1))
+    return have
+
+
+def pick(rows, kind, n, have=None):
     """갈래별 상위 N. ★게이트를 먼저 통과시키고 점수로 정렬한다.
        (점수만으로 뽑으면 급등한 튜토리얼이 올라온다)"""
     floor = MIN_SCORE.get(kind, 0)
+    have = have or set()
     pool = [r for r in rows
             if r.get('kind') == kind
+            and r.get('video_id') not in have
             and r.get('is_ai_generated_likely')
             and (r.get('pollution_risk_score') or 0) < 0.35
             and not r.get('is_tutorial_or_review_likely')
@@ -217,11 +241,12 @@ def main():
     crawl_date = now.strftime('%Y-%m-%d')
     rows = json.load(open(a.source, encoding='utf-8'))
 
-    targets = (pick(rows, 'drama', a.drama)
-               + pick(rows, 'ad_like', a.ad)
-               + pick(rows, 'general', a.general))
+    have = already_have()
+    targets = (pick(rows, 'drama', a.drama, have)
+               + pick(rows, 'ad_like', a.ad, have)
+               + pick(rows, 'general', a.general, have))
 
-    print(f'[{now:%Y-%m-%d %H:%M} KST] 다운로드 대상 {len(targets)}개')
+    print(f'[{now:%Y-%m-%d %H:%M} KST] 이미 보유 {len(have)}편 제외 → 다운로드 대상 {len(targets)}개')
     for k, lab, n in [('drama', '드라마', a.drama), ('ad_like', '광고성', a.ad), ('general', '일반', a.general)]:
         got = sum(1 for r in targets if r['kind'] == k)
         print(f'  {lab:<5} {got:>3}/{n}'
